@@ -14,7 +14,7 @@ This custom integration for Home Assistant listens to a UDP port and decodes Tes
 ## Installation (HACS)
 
 1. Go to HACS → Integrations → Custom Repositories
-2. Add `https://github.com/wreuvers/tesla_evtv_bms` as type `Integration`
+2. Add `https://github.com/mobiletru/tesla_evtv_bms_v3` as type `Integration`
 3. Click “Install”
 4. Restart Home Assistant
 5. Go to Settings → Devices & Services → `+` → Tesla EVTV BMS

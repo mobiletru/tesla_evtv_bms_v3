@@ -1,7 +1,7 @@
 {
   "domain": "tesla_evtv_bms",
   "name": "Tesla EVTV BMS",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "documentation": "https://github.com/wreuvers/tesla_evtv_bms",
   "issue_tracker": "https://github.com/wreuvers/tesla_evtv_bms/issues",
   "requirements": [],

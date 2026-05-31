@@ -3,6 +3,7 @@ from datetime import timedelta
 from functools import partial
 
 from homeassistant.core import HomeAssistant
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.restore_state import RestoreEntity
@@ -81,6 +82,15 @@ UTILITY_METER_PERIODS = {
     "year": timedelta(days=365),
 }
 
+UTILITY_METER_BASES = ["discharge_energy", "charge_energy"]
+
+for _base in UTILITY_METER_BASES:
+    for _label in UTILITY_METER_PERIODS:
+        _key = f"{_base}_{_label}"
+        SENSOR_TYPES[_key] = "kWh"
+        ICON_MAP[_key] = ICON_MAP[_base]
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
     name = entry.data["name"].lower()
 
@@ -109,8 +119,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
         if "energy" not in coordinator:
             coordinator["energy"] = {
-                "charge": 0.0,
-                "discharge": 0.0,
+                "charge": coordinator["values"].get("charge_energy", 0.0),
+                "discharge": coordinator["values"].get("discharge_energy", 0.0),
                 "last_update": time.monotonic()
             }
 
@@ -150,6 +160,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             v["discharge_energy"] = round(coordinator["energy"]["discharge"], 3)
             v["charge_energy"] = round(coordinator["energy"]["charge"], 3)
 
+        # Utility meter accumulation
+        for base_key in UTILITY_METER_BASES:
+            if base_key in v:
+                for label in UTILITY_METER_PERIODS:
+                    meter_key = f"{base_key}_{label}"
+                    last_key = f"{meter_key}_last_value"
+                    if last_key not in coordinator:
+                        coordinator[last_key] = v[base_key]
+                    accumulated = v[base_key] - coordinator[last_key]
+                    v[meter_key] = round(max(accumulated, 0.0), 3)
+
         # Cell Difference
         if all(k in v for k in ("highest_cell", "lowest_cell")):
             v["cell_difference"] = round(v["highest_cell"] - v["lowest_cell"], 4)
@@ -176,19 +197,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     def create_utility_updater(base_key):
         for label, interval in UTILITY_METER_PERIODS.items():
             meter_key = f"{base_key}_{label}"
-            coordinator["values"][meter_key] = 0.0
-            coordinator[f"{meter_key}_last_value"] = coordinator["values"].get(base_key, 0.0)
+            if meter_key not in coordinator["values"]:
+                coordinator["values"][meter_key] = 0.0
 
-            async def reset_and_start_meter(now, key=meter_key, base=base_key):
-                coordinator["values"][key] = 0.0
+            async def reset_meter(now, key=meter_key, base=base_key):
                 coordinator[f"{key}_last_value"] = coordinator["values"].get(base, 0.0)
+                coordinator["values"][key] = 0.0
                 if key in coordinator["entities"]:
                     coordinator["entities"][key].async_schedule_update_ha_state()
 
-            async_track_time_interval(hass, partial(reset_and_start_meter, key=meter_key, base=base_key), interval)
+            async_track_time_interval(hass, partial(reset_meter, key=meter_key, base=base_key), interval)
 
-    create_utility_updater("discharge_energy")
-    create_utility_updater("charge_energy")
+    for base_key in UTILITY_METER_BASES:
+        create_utility_updater(base_key)
 
     def track_rolling_averages(interval_key):
         interval_info = ROLLING_AVERAGE_INTERVALS[interval_key]
@@ -226,7 +247,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                 await add_sensor_entity("hours_to_empty", "h")
                 await add_sensor_entity("hours_to_full", "h")
 
-                # Summary Sensor Logic
                 summary_value = "Idle"
                 if status == "Discharging":
                     hrs = coordinator["values"]["hours_to_empty"]
@@ -245,13 +265,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     for key in ROLLING_AVERAGE_INTERVALS:
         track_rolling_averages(key)
 
-class TeslaEvtvSensor(RestoreEntity):
+
+class TeslaEvtvSensor(SensorEntity, RestoreEntity):
     def __init__(self, device_name, key, unit, coordinator):
         self._device = device_name
         self._key = key
-        self._unit = unit
+        self._attr_native_unit_of_measurement = unit
         self._coordinator = coordinator
-        self._state = None
         self._last_update = 0
         self._cooldown = 1.0
 
@@ -264,18 +284,14 @@ class TeslaEvtvSensor(RestoreEntity):
         return f"{self._device}_{self._key}"
 
     @property
-    def state(self):
+    def native_value(self):
         return self._coordinator["values"].get(self._key)
 
     @property
-    def unit_of_measurement(self):
-        return self._unit
-
-    @property
     def icon(self):
-        soc = self.state
-        if self._key == "state_of_charge" and soc is not None:
-            soc = float(soc)
+        val = self.native_value
+        if self._key == "state_of_charge" and val is not None:
+            soc = float(val)
             for threshold, icon in zip(
                 [90, 80, 70, 60, 50, 40, 30, 20, 10],
                 [
@@ -330,14 +346,14 @@ class TeslaEvtvSensor(RestoreEntity):
 
     async def async_added_to_hass(self):
         old_state = await self.async_get_last_state()
-        if old_state and old_state.state not in (None, "unknown", ""):
+        if old_state and old_state.state not in (None, "unknown", "unavailable", ""):
             try:
                 self._coordinator["values"][self._key] = float(old_state.state)
             except ValueError:
                 self._coordinator["values"][self._key] = old_state.state
 
         async def handle_update(values):
-            if self._key in values:
+            if self._key in values or self._key in self._coordinator["values"]:
                 now = time.monotonic()
                 if now - self._last_update >= self._cooldown:
                     self._last_update = now

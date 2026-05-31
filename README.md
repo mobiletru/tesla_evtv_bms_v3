@@ -1,4 +1,4 @@
-# Tesla EVTV BMS
+# Tesla EVTV BMS V3
 
 This custom integration for Home Assistant listens to a UDP port and decodes Tesla EVTV BMS CAN data into multiple sensors.
 

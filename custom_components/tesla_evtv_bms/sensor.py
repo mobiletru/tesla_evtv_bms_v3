@@ -35,6 +35,8 @@ SENSOR_TYPES = {
     "discharge_energy": "kWh",
     "available_energy": "kWh",
     "cell_difference": "V",
+    "max_temp": "°F",
+    "min_temp": "°F",
     "trigger_cell_voltage": "V",
     "power_average": "W",
     "power_hourly_average": "W",
@@ -61,6 +63,8 @@ ICON_MAP = {
     "discharge_energy": "mdi:transmission-tower-export",
     "available_energy": "mdi:battery-charging-70",
     "cell_difference": "mdi:arrow-expand-vertical",
+    "max_temp": "mdi:thermometer-high",
+    "min_temp": "mdi:thermometer-low",
     "trigger_cell_voltage": "mdi:transmission-tower",
     "power_average": "mdi:chart-line",
     "power_hourly_average": "mdi:chart-timeline-variant",
@@ -312,13 +316,15 @@ class TeslaEvtvSensor(RestoreEntity):
             return "current"
         if self._key == "power":
             return "power"
+        if self._key in ("max_temp", "min_temp"):
+            return "temperature"
         return None
 
     @property
     def state_class(self):
         if self._key.endswith("_energy") or self._key in ("available_energy",):
             return "total_increasing"
-        if self._key in ("power", "volts", "current", "state_of_charge", "cell_difference", "trigger_cell_voltage", "power_average", "power_hourly_average", "hours_to_empty", "hours_to_full"):
+        if self._key in ("power", "volts", "current", "state_of_charge", "cell_difference", "trigger_cell_voltage", "power_average", "power_hourly_average", "hours_to_empty", "hours_to_full", "max_temp", "min_temp"):
             return "measurement"
         return None
 

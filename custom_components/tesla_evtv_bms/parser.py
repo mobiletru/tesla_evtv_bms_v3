@@ -17,6 +17,7 @@ def parse_udp_packet(payload: bytes, port: int) -> dict:
 
     def u16(b0, b1): return b0 + (b1 << 8)
     def s32(b): return int.from_bytes(b, byteorder="little", signed=True)
+    def c_to_f(c): return round(c * 9 / 5 + 32, 1)
 
     result = {}
 
@@ -64,7 +65,9 @@ def parse_udp_packet(payload: bytes, port: int) -> dict:
             "current": round(current, 2),
             "power": round(power),
             "volts": round(volts, 1),
-            "raw_current": raw_current
+            "raw_current": raw_current,
+            "max_temp": c_to_f(payload[6]),
+            "min_temp": c_to_f(payload[7]),
         })
 
     return result

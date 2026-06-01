@@ -88,6 +88,7 @@ ENERGY_KEYS = {"charge_energy", "discharge_energy", "available_energy"}
 VOLTAGE_KEYS = {"volts", "lowest_cell", "highest_cell", "average_cell", "cell_difference", "trigger_cell_voltage"}
 CURRENT_KEYS = {"current", "tcch_amps"}
 TEMP_KEYS = {"max_temp", "min_temp"}
+ENUM_KEYS = {"battery_status", "summary"}
 MEASUREMENT_KEYS = {"power", "volts", "current", "state_of_charge", "cell_difference",
                      "trigger_cell_voltage", "power_average", "power_hourly_average",
                      "hours_to_empty", "hours_to_full", "max_temp", "min_temp",
@@ -302,6 +303,11 @@ class TeslaEvtvSensor(SensorEntity, RestoreEntity):
         elif key in TEMP_KEYS:
             self._attr_device_class = SensorDeviceClass.TEMPERATURE
             self._attr_state_class = SensorStateClass.MEASUREMENT
+        elif key in ENUM_KEYS:
+            self._attr_device_class = SensorDeviceClass.ENUM
+            self._attr_state_class = None
+            if key == "battery_status":
+                self._attr_options = ["Charging", "Discharging", "Idle"]
         elif key in MEASUREMENT_KEYS:
             self._attr_device_class = None
             self._attr_state_class = SensorStateClass.MEASUREMENT

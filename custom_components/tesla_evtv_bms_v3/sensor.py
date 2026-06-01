@@ -45,6 +45,7 @@ SENSOR_TYPES = {
     "hours_to_full": "h",
     "summary": "",
     "low_volt": "",
+    "high_volt": "",
 }
 
 ICON_MAP = {
@@ -74,6 +75,7 @@ ICON_MAP = {
     "hours_to_full": "mdi:battery-clock",
     "summary": "mdi:clock-outline",
     "low_volt": "mdi:battery-alert-variant-outline",
+    "high_volt": "mdi:battery-alert-variant-outline",
 }
 
 UTILITY_METER_PERIODS = {
@@ -90,7 +92,7 @@ ENERGY_KEYS = {"charge_energy", "discharge_energy", "available_energy"}
 VOLTAGE_KEYS = {"volts", "lowest_cell", "highest_cell", "average_cell", "cell_difference", "trigger_cell_voltage"}
 CURRENT_KEYS = {"current", "tcch_amps"}
 TEMP_KEYS = {"max_temp", "min_temp"}
-ENUM_KEYS = {"battery_status", "summary", "low_volt"}
+ENUM_KEYS = {"battery_status", "summary", "low_volt", "high_volt"}
 MEASUREMENT_KEYS = {"power", "volts", "current", "state_of_charge", "cell_difference",
                      "trigger_cell_voltage", "power_average", "power_hourly_average",
                      "hours_to_empty", "hours_to_full", "max_temp", "min_temp",
@@ -208,6 +210,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             else:
                 v["low_volt"] = "Normal"
 
+        # High Voltage Warning
+        highest = v.get("highest_cell")
+        if highest is not None:
+            max_v = config["max_cell_volts"]
+            if highest >= max_v:
+                v["high_volt"] = "Critical"
+            elif highest >= max_v - 0.1:
+                v["high_volt"] = "Warning"
+            else:
+                v["high_volt"] = "Normal"
+
         for key in v:
             unit = SENSOR_TYPES.get(key, "")
             await add_sensor_entity(key, unit)
@@ -321,7 +334,7 @@ class TeslaEvtvSensor(SensorEntity, RestoreEntity):
             self._attr_state_class = None
             if key == "battery_status":
                 self._attr_options = ["Charging", "Discharging", "Idle"]
-            elif key == "low_volt":
+            elif key in ("low_volt", "high_volt"):
                 self._attr_options = ["Normal", "Warning", "Critical"]
         elif key in MEASUREMENT_KEYS:
             self._attr_device_class = None

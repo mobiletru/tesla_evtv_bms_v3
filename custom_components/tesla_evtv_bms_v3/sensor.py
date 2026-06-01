@@ -408,10 +408,17 @@ class TeslaEvtvSensor(SensorEntity, RestoreEntity):
         if (old_state and old_state.state not in (None, "unknown", "unavailable", "")
                 and self._key not in self.SKIP_RESTORE_KEYS):
             try:
-                self._coordinator["values"][self._key] = float(old_state.state)
+                restored = float(old_state.state)
             except ValueError:
                 if self._key in ENUM_KEYS:
                     self._coordinator["values"][self._key] = old_state.state
+            else:
+                self._coordinator["values"][self._key] = restored
+                if self._key in ("charge_energy", "discharge_energy"):
+                    energy = self._coordinator.get("energy")
+                    if energy is not None:
+                        acc_key = "charge" if self._key == "charge_energy" else "discharge"
+                        energy[acc_key] = restored
 
         async def handle_update(values):
             if self._key in values:

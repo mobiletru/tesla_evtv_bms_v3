@@ -16,12 +16,13 @@ def parse_udp_packet(payload: bytes, port: int) -> dict:
         return None
 
     def u16(b0, b1): return b0 + (b1 << 8)
+    def s16(b0, b1): return int.from_bytes(bytes([b0, b1]), byteorder="little", signed=True)
     def s32(b): return int.from_bytes(b, byteorder="little", signed=True)
     def c_to_f(c): return round(c * 9 / 5 + 32, 1)
 
     result = {}
 
-    if can_id == 0x650:  # State of Charge
+    if can_id == 0x650:
         result["state_of_charge"] = payload[0] / 2
 
     elif can_id == 0x651:
@@ -32,7 +33,6 @@ def parse_udp_packet(payload: bytes, port: int) -> dict:
         result["active_cells"] = payload[7]
 
     elif can_id == 0x151:
-        # Keeping 0x151 parsing in case needed, but optional now
         current = s32(payload[0:4]) / 100.0 * -1
         power = s32(payload[4:8]) / 100.0 * -1
         volts = power / current if current != 0 else 0
@@ -47,25 +47,14 @@ def parse_udp_packet(payload: bytes, port: int) -> dict:
         result["tcch_amps"] = u16(payload[4], payload[5]) / 10
 
     elif can_id == 0x150:
-        raw_current = u16(payload[0], payload[1])
+        current = s16(payload[0], payload[1])
         volts = u16(payload[2], payload[3]) / 10.0
-
-        if raw_current > 32768:
-            # Charging
-            charging_current = 65535 - raw_current
-            current = charging_current
-            power = round(volts * charging_current)
-        else:
-            # Discharging
-            discharging_current = raw_current
-            current = -discharging_current
-            power = -round(volts * discharging_current)
+        power = round(volts * current)
 
         result.update({
             "current": round(current, 2),
-            "power": round(power),
+            "power": power,
             "volts": round(volts, 1),
-            "raw_current": raw_current,
             "max_temp": c_to_f(payload[6]),
             "min_temp": c_to_f(payload[7]),
         })

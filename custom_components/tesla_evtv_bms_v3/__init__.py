@@ -1,4 +1,3 @@
-import asyncio
 import socket
 import logging
 
@@ -58,8 +57,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(("", port))
         sock.setblocking(False)
-        loop = asyncio.get_event_loop()
-        loop.add_reader(sock, udp_callback, sock)
+        hass.loop.add_reader(sock, udp_callback, sock)
+        hass.data[DOMAIN][name_lower]["socket"] = sock
         _LOGGER.info("Started non-blocking UDP listener for %s on port %d", name, port)
     except OSError as e:
         _LOGGER.error("Failed to bind UDP socket on port %d for %s: %s", port, name, e)
@@ -70,4 +69,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    return True
+    name_lower = entry.data["name"].lower()
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+    if unload_ok and DOMAIN in hass.data and name_lower in hass.data[DOMAIN]:
+        data = hass.data[DOMAIN].pop(name_lower)
+        sock = data.get("socket")
+        if sock:
+            hass.loop.remove_reader(sock)
+            sock.close()
+            _LOGGER.info("Closed UDP listener for %s", name_lower)
+
+    return unload_ok

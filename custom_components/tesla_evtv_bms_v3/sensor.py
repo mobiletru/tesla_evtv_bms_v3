@@ -3,7 +3,7 @@ from datetime import timedelta
 from functools import partial
 
 from homeassistant.core import HomeAssistant
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.restore_state import RestoreEntity
@@ -84,11 +84,21 @@ UTILITY_METER_PERIODS = {
 
 UTILITY_METER_BASES = ["discharge_energy", "charge_energy"]
 
+ENERGY_KEYS = {"charge_energy", "discharge_energy", "available_energy"}
+VOLTAGE_KEYS = {"volts", "lowest_cell", "highest_cell", "average_cell", "cell_difference", "trigger_cell_voltage"}
+CURRENT_KEYS = {"current", "tcch_amps"}
+TEMP_KEYS = {"max_temp", "min_temp"}
+MEASUREMENT_KEYS = {"power", "volts", "current", "state_of_charge", "cell_difference",
+                     "trigger_cell_voltage", "power_average", "power_hourly_average",
+                     "hours_to_empty", "hours_to_full", "max_temp", "min_temp",
+                     "charge", "discharge", "freq_shift_volts", "tcch_amps"}
+
 for _base in UTILITY_METER_BASES:
     for _label in UTILITY_METER_PERIODS:
         _key = f"{_base}_{_label}"
         SENSOR_TYPES[_key] = "kWh"
         ICON_MAP[_key] = ICON_MAP[_base]
+        ENERGY_KEYS.add(_key)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
@@ -267,6 +277,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
 
 class TeslaEvtvSensor(SensorEntity, RestoreEntity):
+    _attr_has_entity_name = True
+
     def __init__(self, device_name, key, unit, coordinator):
         self._device = device_name
         self._key = key
@@ -274,6 +286,28 @@ class TeslaEvtvSensor(SensorEntity, RestoreEntity):
         self._coordinator = coordinator
         self._last_update = 0
         self._cooldown = 1.0
+
+        if key in ENERGY_KEYS:
+            self._attr_device_class = SensorDeviceClass.ENERGY
+            self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        elif key in VOLTAGE_KEYS:
+            self._attr_device_class = SensorDeviceClass.VOLTAGE
+            self._attr_state_class = SensorStateClass.MEASUREMENT
+        elif key in CURRENT_KEYS:
+            self._attr_device_class = SensorDeviceClass.CURRENT
+            self._attr_state_class = SensorStateClass.MEASUREMENT
+        elif key == "power":
+            self._attr_device_class = SensorDeviceClass.POWER
+            self._attr_state_class = SensorStateClass.MEASUREMENT
+        elif key in TEMP_KEYS:
+            self._attr_device_class = SensorDeviceClass.TEMPERATURE
+            self._attr_state_class = SensorStateClass.MEASUREMENT
+        elif key in MEASUREMENT_KEYS:
+            self._attr_device_class = None
+            self._attr_state_class = SensorStateClass.MEASUREMENT
+        else:
+            self._attr_device_class = None
+            self._attr_state_class = None
 
     @property
     def name(self):
@@ -317,32 +351,10 @@ class TeslaEvtvSensor(SensorEntity, RestoreEntity):
             "identifiers": {(DOMAIN, self._device)},
             "name": self._device,
             "manufacturer": "EVTV",
-            "model": "Tesla BMS",
+            "model": "Tesla BMS V3",
             "entry_type": "service",
             "suggested_area": "Battery Storage"
         }
-
-    @property
-    def device_class(self):
-        if self._key.endswith("_energy") or self._key in ("available_energy",):
-            return "energy"
-        if self._key in ("volts", "lowest_cell", "highest_cell", "average_cell", "cell_difference", "trigger_cell_voltage"):
-            return "voltage"
-        if self._key in ("current", "tcch_amps"):
-            return "current"
-        if self._key == "power":
-            return "power"
-        if self._key in ("max_temp", "min_temp"):
-            return "temperature"
-        return None
-
-    @property
-    def state_class(self):
-        if self._key.endswith("_energy") or self._key in ("available_energy",):
-            return "total_increasing"
-        if self._key in ("power", "volts", "current", "state_of_charge", "cell_difference", "trigger_cell_voltage", "power_average", "power_hourly_average", "hours_to_empty", "hours_to_full", "max_temp", "min_temp"):
-            return "measurement"
-        return None
 
     async def async_added_to_hass(self):
         old_state = await self.async_get_last_state()
@@ -353,7 +365,7 @@ class TeslaEvtvSensor(SensorEntity, RestoreEntity):
                 self._coordinator["values"][self._key] = old_state.state
 
         async def handle_update(values):
-            if self._key in values or self._key in self._coordinator["values"]:
+            if self._key in values:
                 now = time.monotonic()
                 if now - self._last_update >= self._cooldown:
                     self._last_update = now

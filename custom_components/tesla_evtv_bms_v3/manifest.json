@@ -2,8 +2,8 @@
   "domain": "tesla_evtv_bms_v3",
   "name": "Tesla EVTV BMS V3",
   "version": "3.0.0",
-  "documentation": "https://github.com/wreuvers/tesla_evtv_bms_v3",
-  "issue_tracker": "https://github.com/wreuvers/tesla_evtv_bms/issues",
+  "documentation": "https://github.com/mobiletru/tesla_evtv_bms_v3",
+  "issue_tracker": "https://github.com/mobiletru/tesla_evtv_bms_v3/issues",
   "requirements": [],
   "dependencies": [],
   "codeowners": ["@mobiletru"],
@@ -12,4 +12,3 @@
   "icon": "www/icon.jpg",
   "branding": "tesla_evtv_bms_v3"
 }
-

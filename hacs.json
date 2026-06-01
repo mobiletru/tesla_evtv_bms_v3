@@ -3,6 +3,6 @@
   "content_in_root": false,
   "domain": "tesla_evtv_bms_v3",
   "country": "US",
-  "homeassistant": "2023.0.0",
+  "homeassistant": "2026.17.3",
   "render_readme": true
 }

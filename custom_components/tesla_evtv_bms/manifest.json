@@ -1,15 +1,15 @@
 {
-  "domain": "tesla_evtv_bms",
-  "name": "Tesla EVTV BMS",
+  "domain": "tesla_evtv_bms_v3",
+  "name": "Tesla EVTV BMS V3",
   "version": "3.0.0",
-  "documentation": "https://github.com/wreuvers/tesla_evtv_bms",
+  "documentation": "https://github.com/wreuvers/tesla_evtv_bms_v3",
   "issue_tracker": "https://github.com/wreuvers/tesla_evtv_bms/issues",
   "requirements": [],
   "dependencies": [],
-  "codeowners": ["@wreuvers"],
+  "codeowners": ["@mobiletru"],
   "config_flow": true,
   "iot_class": "local_push",
   "icon": "www/icon.jpg",
-  "branding": "tesla_evtv_bms"
+  "branding": "tesla_evtv_bms_v3"
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "Tesla EVTV BMS v3",
-  "content_in_root": false,
+  "content_in_root": true,
   "domain": "tesla_evtv_bms_v3",
   "country": "US",
   "homeassistant": "2023.0.0",

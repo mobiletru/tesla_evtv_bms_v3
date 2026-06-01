@@ -92,7 +92,8 @@ ENERGY_KEYS = {"charge_energy", "discharge_energy", "available_energy"}
 VOLTAGE_KEYS = {"volts", "lowest_cell", "highest_cell", "average_cell", "cell_difference", "trigger_cell_voltage"}
 CURRENT_KEYS = {"current", "tcch_amps"}
 TEMP_KEYS = {"max_temp", "min_temp"}
-ENUM_KEYS = {"battery_status", "summary", "low_volt", "high_volt"}
+ENUM_KEYS = {"battery_status", "low_volt", "high_volt"}
+TEXT_KEYS = {"summary"}
 MEASUREMENT_KEYS = {"power", "volts", "current", "state_of_charge", "cell_difference",
                      "trigger_cell_voltage", "power_average", "power_hourly_average",
                      "hours_to_empty", "hours_to_full", "max_temp", "min_temp",
@@ -317,18 +318,23 @@ class TeslaEvtvSensor(SensorEntity, RestoreEntity):
         if key in ENERGY_KEYS:
             self._attr_device_class = SensorDeviceClass.ENERGY
             self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+            self._attr_suggested_display_precision = 3
         elif key in VOLTAGE_KEYS:
             self._attr_device_class = SensorDeviceClass.VOLTAGE
             self._attr_state_class = SensorStateClass.MEASUREMENT
+            self._attr_suggested_display_precision = 3
         elif key in CURRENT_KEYS:
             self._attr_device_class = SensorDeviceClass.CURRENT
             self._attr_state_class = SensorStateClass.MEASUREMENT
+            self._attr_suggested_display_precision = 2
         elif key == "power":
             self._attr_device_class = SensorDeviceClass.POWER
             self._attr_state_class = SensorStateClass.MEASUREMENT
+            self._attr_suggested_display_precision = 0
         elif key in TEMP_KEYS:
             self._attr_device_class = SensorDeviceClass.TEMPERATURE
             self._attr_state_class = SensorStateClass.MEASUREMENT
+            self._attr_suggested_display_precision = 1
         elif key in ENUM_KEYS:
             self._attr_device_class = SensorDeviceClass.ENUM
             self._attr_state_class = None
@@ -336,6 +342,9 @@ class TeslaEvtvSensor(SensorEntity, RestoreEntity):
                 self._attr_options = ["Charging", "Discharging", "Idle"]
             elif key in ("low_volt", "high_volt"):
                 self._attr_options = ["Normal", "Warning", "Critical"]
+        elif key in TEXT_KEYS:
+            self._attr_device_class = None
+            self._attr_state_class = None
         elif key in MEASUREMENT_KEYS:
             self._attr_device_class = None
             self._attr_state_class = SensorStateClass.MEASUREMENT
@@ -390,13 +399,26 @@ class TeslaEvtvSensor(SensorEntity, RestoreEntity):
             "suggested_area": "Battery Storage"
         }
 
+    SKIP_RESTORE_KEYS = TEXT_KEYS | {"hours_to_empty", "hours_to_full",
+                                     "battery_status", "charge", "discharge",
+                                     "power_average", "power_hourly_average"}
+
     async def async_added_to_hass(self):
         old_state = await self.async_get_last_state()
-        if old_state and old_state.state not in (None, "unknown", "unavailable", ""):
+        if (old_state and old_state.state not in (None, "unknown", "unavailable", "")
+                and self._key not in self.SKIP_RESTORE_KEYS):
             try:
-                self._coordinator["values"][self._key] = float(old_state.state)
+                restored = float(old_state.state)
             except ValueError:
-                self._coordinator["values"][self._key] = old_state.state
+                if self._key in ENUM_KEYS:
+                    self._coordinator["values"][self._key] = old_state.state
+            else:
+                self._coordinator["values"][self._key] = restored
+                if self._key in ("charge_energy", "discharge_energy"):
+                    energy = self._coordinator.get("energy")
+                    if energy is not None:
+                        acc_key = "charge" if self._key == "charge_energy" else "discharge"
+                        energy[acc_key] = restored
 
         async def handle_update(values):
             if self._key in values:

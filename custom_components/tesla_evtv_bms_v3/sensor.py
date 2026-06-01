@@ -318,18 +318,23 @@ class TeslaEvtvSensor(SensorEntity, RestoreEntity):
         if key in ENERGY_KEYS:
             self._attr_device_class = SensorDeviceClass.ENERGY
             self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+            self._attr_suggested_display_precision = 3
         elif key in VOLTAGE_KEYS:
             self._attr_device_class = SensorDeviceClass.VOLTAGE
             self._attr_state_class = SensorStateClass.MEASUREMENT
+            self._attr_suggested_display_precision = 3
         elif key in CURRENT_KEYS:
             self._attr_device_class = SensorDeviceClass.CURRENT
             self._attr_state_class = SensorStateClass.MEASUREMENT
+            self._attr_suggested_display_precision = 2
         elif key == "power":
             self._attr_device_class = SensorDeviceClass.POWER
             self._attr_state_class = SensorStateClass.MEASUREMENT
+            self._attr_suggested_display_precision = 0
         elif key in TEMP_KEYS:
             self._attr_device_class = SensorDeviceClass.TEMPERATURE
             self._attr_state_class = SensorStateClass.MEASUREMENT
+            self._attr_suggested_display_precision = 1
         elif key in ENUM_KEYS:
             self._attr_device_class = SensorDeviceClass.ENUM
             self._attr_state_class = None

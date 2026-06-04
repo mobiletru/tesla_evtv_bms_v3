@@ -11,6 +11,8 @@ This custom integration for Home Assistant listens to a UDP port and decodes Tes
 - Trigger Cell to make everything safe :)
 - Lightweight and local
 
+- Fixed all errors 6/2026
+
 ## Installation (HACS)
 
 1. Go to HACS → Integrations → Custom Repositories

@@ -310,7 +310,7 @@ class TeslaEvtvSensor(SensorEntity, RestoreEntity):
     def __init__(self, device_name, key, unit, coordinator):
         self._device = device_name
         self._key = key
-        self._attr_native_unit_of_measurement = unit
+        self._attr_native_unit_of_measurement = unit or None
         self._coordinator = coordinator
         self._last_update = 0
         self._cooldown = 1.0

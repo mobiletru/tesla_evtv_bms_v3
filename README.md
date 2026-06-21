@@ -34,7 +34,9 @@ Live pack data (SOC, V, I, cells) refreshes every 2 seconds.
 Import the Lovelace dashboard for phone/tablet control via MQTT sliders:
 
 1. **Settings → Dashboards → Add dashboard → Import**
-2. Paste contents of [`dashboard/tesla-bms-live.yaml`](dashboard/tesla-bms-live.yaml)
+2. Paste contents of [`dashboard/tesla-bms-live.yaml`](dashboard/tesla-bms-live.yaml) (live + settings + WebBox tab)
+
+Full multi-tab dashboard with WebBox plant view: [`dashboard/tesla-bms-sunny-island.yaml`](dashboard/tesla-bms-sunny-island.yaml)
 
 The **Settings** tab has the same live controls as the web UI (number + switch entities).
 

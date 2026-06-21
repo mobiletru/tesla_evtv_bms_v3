@@ -2,8 +2,9 @@
 # Import: Settings → Dashboards → Add dashboard → Import → paste this file
 # Or copy views into an existing dashboard.
 #
-# Requires add-on v1.3+ with publish_mqtt: true
+# Requires add-on v1.5+ with publish_mqtt: true
 # Entity IDs assume device_name: tesla_bms, sunny_island_device_name: sunny_island
+# WebBox tab: webbox_enabled + publish_webbox in add-on config
 
 title: Tesla BMS
 views:
@@ -105,3 +106,42 @@ views:
         entities:
           - entity: sensor.sunny_island_dc_voltage
           - entity: sensor.sunny_island_dc_current
+
+  - title: WebBox
+    path: webbox
+    icon: mdi:server-network
+    cards:
+      - type: markdown
+        content: |
+          **Sunny WebBox** — polled every 30s. Enable `webbox_enabled` and pick sensors under `publish_webbox`.
+
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.sunny_island_webbox_plant_power
+            name: Plant Power
+            min: -10000
+            max: 10000
+            unit: W
+          - type: glance
+            title: Plant
+            entities:
+              - entity: sensor.sunny_island_webbox_plant_status
+              - entity: sensor.sunny_island_webbox_energy_today
+              - entity: sensor.sunny_island_webbox_energy_total
+
+      - type: glance
+        title: Sunny Island (WebBox)
+        entities:
+          - entity: sensor.sunny_island_si_battery_soc
+          - entity: sensor.sunny_island_dc_voltage
+          - entity: sensor.sunny_island_dc_current
+          - entity: sensor.sunny_island_inverter_power
+          - entity: sensor.sunny_island_grid_power
+
+      - type: history-graph
+        title: WebBox (24h)
+        hours_to_show: 24
+        entities:
+          - entity: sensor.sunny_island_webbox_plant_power
+          - entity: sensor.sunny_island_si_battery_soc

@@ -139,6 +139,75 @@ views:
           - entity: sensor.sunny_island_inverter_power
             name: Inverter kW
 
+  - title: WebBox
+    path: webbox
+    icon: mdi:server-network
+    cards:
+      - type: markdown
+        content: |
+          ## SMA Sunny WebBox
+          Plant + inverter data via JSON-RPC (enable **webbox_enabled** and **publish_webbox** in add-on config)
+
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.sunny_island_webbox_plant_power
+            name: Plant Power
+            min: -10000
+            max: 10000
+            unit: W
+          - type: entity
+            entity: sensor.sunny_island_webbox_plant_status
+            name: Plant Status
+
+      - type: horizontal-stack
+        cards:
+          - type: entity
+            entity: sensor.sunny_island_webbox_energy_today
+            name: Energy Today
+          - type: entity
+            entity: sensor.sunny_island_webbox_energy_total
+            name: Energy Total
+
+      - type: markdown
+        content: |
+          ### Sunny Island (via WebBox)
+
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.sunny_island_si_battery_soc
+            name: Battery SOC
+            min: 0
+            max: 100
+            unit: "%"
+          - type: entity
+            entity: sensor.sunny_island_dc_voltage
+            name: DC Voltage
+          - type: entity
+            entity: sensor.sunny_island_dc_current
+            name: DC Current
+
+      - type: horizontal-stack
+        cards:
+          - type: entity
+            entity: sensor.sunny_island_inverter_power
+            name: Inverter Power
+          - type: entity
+            entity: sensor.sunny_island_grid_power
+            name: Grid Power
+
+      - type: history-graph
+        title: WebBox plant power (24h)
+        hours_to_show: 24
+        entities:
+          - entity: sensor.sunny_island_webbox_plant_power
+            name: Plant W
+          - entity: sensor.sunny_island_si_battery_soc
+            name: SOC
+          - entity: sensor.sunny_island_inverter_power
+            name: Inverter W
+
   - title: Closed Loop
     path: closed-loop
     icon: mdi:transmission-tower

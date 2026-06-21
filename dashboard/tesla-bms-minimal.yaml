@@ -17,4 +17,7 @@ views:
           - sensor.tesla_bms_battery_status
           - sensor.sunny_island_dc_voltage
           - sensor.sunny_island_dc_current
+          - sensor.sunny_island_webbox_plant_power
+          - sensor.sunny_island_webbox_plant_status
+          - sensor.sunny_island_si_battery_soc
           - sensor.tesla_bms_sma_charge_current

@@ -1,18 +1,38 @@
-# Tesla EVTV BMS + Sunny Island 6048
+# Tesla EVTV BMS V3
 
-Home Assistant OS add-on: EVTV BMS monitoring, SMA closed-loop CAN, **live settings dashboard**.
+Home Assistant integration: **UDP-only** EVTV BMS monitoring (SOC, pack V/I, cells, temperature in °F).
 
-## Install
+> **v3.3.5:** PCAN / Sunny Island CAN transmit was removed from this integration. Use the separate **Sunny Island CAN** add-on to bridge BMS data to the SMA SI6048.
+
+## Install (HA OS app)
+
+1. **Settings → Add-ons → Add-on Store → ⋮ → Repositories**
+2. Add: `https://github.com/mobiletru/tesla_evtv_bms_v3`
+3. Install **Tesla EVTV BMS** add-on, start it, restart Home Assistant
+4. **Settings → Devices & Services → Add Integration** → `Tesla EVTV BMS V3`
+
+## Install (HACS)
+
+See [HACS instructions](#installation-hacs) below.
+
+---
+
+# Tesla EVTV BMS + Sunny Island 6048 (legacy add-on)
+
+The **`tesla_evtv_sunny_island`** add-on in this repo is a separate MQTT/CAN bridge with a live settings dashboard. The **integration** (`tesla_evtv_bms_v3`) no longer transmits on CAN as of v3.3.5.
+
+## Install (Sunny Island bridge add-on)
 
 1. Install **Mosquitto broker** add-on
 2. **Settings → Add-ons → Add-on Store → ⋮ → Repositories**
 3. Add: `https://github.com/mobiletru/tesla_evtv_bms_v3`
-4. Install **Tesla EVTV BMS + Sunny Island** (v1.5+)
+4. Install **Tesla EVTV Sunny Island** add-on (if published) or use **Sunny Island CAN**
 5. Start the add-on
 
 ## Live settings dashboard (web)
 
-The add-on serves a **live web UI** on port **8099**:
+The Sunny Island bridge add-on serves a **live web UI** on port **8099**:
+
 
 - Open from the add-on page: **Open web UI**
 - Or browse to `http://<home-assistant-ip>:8099/`

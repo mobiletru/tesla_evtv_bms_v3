@@ -1,0 +1,7 @@
+configuration:
+  install_dashboard:
+    name: Install Lovelace dashboard
+    description: Copy a default battery dashboard to /config/dashboards/tesla_evtv_bms.yaml
+  sync_interval_minutes:
+    name: Sync interval (minutes)
+    description: How often to re-deploy integration files from the app container

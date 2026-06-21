@@ -1,0 +1,25 @@
+name: Tesla EVTV BMS
+version: "3.3.5"
+slug: tesla_evtv_bms
+description: >-
+  Installs the Tesla EVTV BMS V3 Home Assistant integration. Listens on UDP
+  for EVTV CAN battery data and creates real-time sensors for SOC, power,
+  cell voltages, and pack status.
+arch:
+  - aarch64
+  - amd64
+  - armv7
+startup: application
+boot: auto
+init: false
+homeassistant: "2024.1.0"
+url: https://github.com/mobiletru/tesla_evtv_bms_v3
+map:
+  - type: homeassistant_config
+    read_only: false
+options:
+  install_dashboard: true
+  sync_interval_minutes: 60
+schema:
+  install_dashboard: bool
+  sync_interval_minutes: int

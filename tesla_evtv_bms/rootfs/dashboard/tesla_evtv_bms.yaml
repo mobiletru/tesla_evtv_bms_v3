@@ -1,0 +1,74 @@
+title: Tesla EVTV BMS
+views:
+  - title: Battery
+    path: battery
+    icon: mdi:car-battery
+    cards:
+      - type: gauge
+        entity: sensor.tesla_pack_state_of_charge
+        name: State of Charge
+        min: 0
+        max: 100
+        severity:
+          green: 50
+          yellow: 25
+          red: 0
+
+      - type: entities
+        title: Pack Status
+        entities:
+          - entity: sensor.tesla_pack_summary
+            name: Summary
+          - entity: sensor.tesla_pack_battery_status
+            name: Status
+          - entity: sensor.tesla_pack_volts
+            name: Voltage
+          - entity: sensor.tesla_pack_current
+            name: Current
+          - entity: sensor.tesla_pack_power
+            name: Power
+          - entity: sensor.tesla_pack_available_energy
+            name: Available Energy
+
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.tesla_pack_charge
+            name: Charge
+            min: 0
+            max: 10000
+            unit: W
+          - type: gauge
+            entity: sensor.tesla_pack_discharge
+            name: Discharge
+            min: 0
+            max: 10000
+            unit: W
+
+      - type: entities
+        title: Energy
+        entities:
+          - entity: sensor.tesla_pack_charge_energy
+          - entity: sensor.tesla_pack_discharge_energy
+          - entity: sensor.tesla_pack_hours_to_empty
+          - entity: sensor.tesla_pack_hours_to_full
+
+  - title: Cells
+    path: cells
+    icon: mdi:battery-heart-variant
+    cards:
+      - type: entities
+        title: Cell Voltages
+        entities:
+          - entity: sensor.tesla_pack_lowest_cell
+          - entity: sensor.tesla_pack_highest_cell
+          - entity: sensor.tesla_pack_average_cell
+          - entity: sensor.tesla_pack_cell_difference
+          - entity: sensor.tesla_pack_active_cells
+          - entity: sensor.tesla_pack_max_cells
+
+      - type: entities
+        title: Temperature
+        entities:
+          - entity: sensor.tesla_pack_min_temp
+          - entity: sensor.tesla_pack_max_temp

@@ -1,0 +1,174 @@
+title: Tesla BMS + Sunny Island
+views:
+  - title: Battery
+    path: battery
+    icon: mdi:battery-high
+    cards:
+      - type: markdown
+        content: |
+          ## Tesla BMS Pack
+          36-module 2S18P · SMA closed-loop CAN
+
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.tesla_bms_state_of_charge
+            name: State of Charge
+            min: 0
+            max: 100
+            severity:
+              green: 60
+              yellow: 30
+              red: 0
+          - type: gauge
+            entity: sensor.tesla_bms_volts
+            name: Pack Voltage
+            min: 40
+            max: 52
+            unit: V
+
+      - type: horizontal-stack
+        cards:
+          - type: entity
+            entity: sensor.tesla_bms_current
+            name: Current
+          - type: entity
+            entity: sensor.tesla_bms_power
+            name: Power
+          - type: entity
+            entity: sensor.tesla_bms_battery_status
+            name: Status
+
+      - type: history-graph
+        title: Pack History (24h)
+        hours_to_show: 24
+        entities:
+          - entity: sensor.tesla_bms_state_of_charge
+            name: SOC
+          - entity: sensor.tesla_bms_volts
+            name: Voltage
+          - entity: sensor.tesla_bms_current
+            name: Current
+
+  - title: Cells & Temps
+    path: cells
+    icon: mdi:battery-heart-variant
+    cards:
+      - type: entities
+        title: Cell Voltages
+        entities:
+          - entity: sensor.tesla_bms_lowest_cell
+            name: Lowest Cell
+          - entity: sensor.tesla_bms_highest_cell
+            name: Highest Cell
+          - entity: sensor.tesla_bms_average_cell
+            name: Average Cell
+
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.tesla_bms_lowest_cell
+            name: Lowest Cell
+            min: 3.0
+            max: 4.2
+            unit: V
+          - type: gauge
+            entity: sensor.tesla_bms_highest_cell
+            name: Highest Cell
+            min: 3.0
+            max: 4.2
+            unit: V
+
+      - type: horizontal-stack
+        cards:
+          - type: entity
+            entity: sensor.tesla_bms_min_temp
+            name: Min Temp
+          - type: entity
+            entity: sensor.tesla_bms_max_temp
+            name: Max Temp
+
+  - title: Sunny Island
+    path: sunny-island
+    icon: mdi:solar-power
+    cards:
+      - type: markdown
+        content: |
+          ## SMA Sunny Island 6048
+          Metrics from CAN bus (enable in add-on **publish_sunny_island**)
+
+      - type: horizontal-stack
+        cards:
+          - type: entity
+            entity: sensor.sunny_island_dc_voltage
+            name: DC Voltage
+          - type: entity
+            entity: sensor.sunny_island_dc_current
+            name: DC Current
+
+      - type: horizontal-stack
+        cards:
+          - type: entity
+            entity: sensor.sunny_island_grid_power
+            name: Grid Power
+          - type: entity
+            entity: sensor.sunny_island_inverter_power
+            name: Inverter Power
+          - type: entity
+            entity: sensor.sunny_island_load_power
+            name: Load Power
+
+      - type: entities
+        title: AC / Grid
+        entities:
+          - entity: sensor.sunny_island_input_voltage
+            name: Input Voltage
+          - entity: sensor.sunny_island_grid_frequency
+            name: Grid Frequency
+          - entity: sensor.sunny_island_output_voltage
+            name: Output Voltage
+
+      - type: history-graph
+        title: Sunny Island (24h)
+        hours_to_show: 24
+        entities:
+          - entity: sensor.sunny_island_dc_voltage
+            name: DC V
+          - entity: sensor.sunny_island_dc_current
+            name: DC A
+          - entity: sensor.sunny_island_inverter_power
+            name: Inverter kW
+
+  - title: Closed Loop
+    path: closed-loop
+    icon: mdi:transmission-tower
+    cards:
+      - type: markdown
+        content: |
+          ## SMA Closed-Loop Limits
+          Live charge/discharge limits sent on CAN **0x351** (enable in **publish_sma_limits**)
+
+      - type: entities
+        title: Charge Limits
+        entities:
+          - entity: sensor.tesla_bms_sma_charge_voltage
+            name: Charge Voltage Setpoint
+          - entity: sensor.tesla_bms_sma_charge_current
+            name: Charge Current Limit
+
+      - type: entities
+        title: Discharge Limits
+        entities:
+          - entity: sensor.tesla_bms_sma_discharge_voltage
+            name: Discharge Voltage Limit
+          - entity: sensor.tesla_bms_sma_discharge_current
+            name: Discharge Current Limit
+
+      - type: history-graph
+        title: Charge Current Limit (24h)
+        hours_to_show: 24
+        entities:
+          - entity: sensor.tesla_bms_sma_charge_current
+            name: Charge Limit A
+          - entity: sensor.tesla_bms_highest_cell
+            name: Highest Cell V

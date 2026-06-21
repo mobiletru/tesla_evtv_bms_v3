@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Home Assistant OS add-on: EVTV BMS, SMA Sunny Island CAN, and CAN bus monitor."""
+"""Home Assistant OS add-on: EVTV BMS, SMA Sunny Island CAN, live dashboard."""
 
 from __future__ import annotations
 
@@ -16,9 +16,13 @@ import paho.mqtt.client as mqtt
 
 from app.can_monitor import CanWatchService
 from app.can_setup import setup_can_interface
+from app.charge_control import compute_closed_loop_limits
+from app.live_settings import LiveSettings
 from app.pack_config import compute_pack_settings
 from app.parser import enrich_values, parse_udp_packet
+from app.settings_mqtt import SettingsMqtt
 from app.sma_can import SMA_MESSAGE_INTERVAL, build_sma_messages
+from app.web_dashboard import start_web_dashboard
 
 logging.basicConfig(
     level=getattr(logging, os.environ.get("LOG_LEVEL", "INFO").upper(), logging.INFO),
@@ -46,14 +50,14 @@ class Bridge:
         self.udp_port = int(os.environ.get("UDP_PORT", "6850"))
         self.can_iface = os.environ.get("CAN_INTERFACE", "can0")
         self.can_bitrate = int(os.environ.get("CAN_BITRATE", "500000"))
-        self.sma_enabled = os.environ.get("SMA_ENABLED", "true").lower() == "true"
         self.invert_current = os.environ.get("INVERT_CURRENT", "false").lower() == "true"
         self.setup_can = os.environ.get("SETUP_CAN", "true").lower() == "true"
-        self.can_watch_enabled = os.environ.get("CAN_WATCH_ENABLED", "true").lower() == "true"
         self.can_watch_filter = os.environ.get("CAN_WATCH_FILTER", "sma")
         self.can_watch_mqtt = os.environ.get("CAN_WATCH_MQTT", "false").lower() == "true"
         self.can_watch_summary = float(os.environ.get("CAN_WATCH_SUMMARY_INTERVAL", "30"))
         self.can_watch_device = os.environ.get("CAN_WATCH_DEVICE_NAME", "sunny_island_can")
+        self.web_enabled = os.environ.get("WEB_ENABLED", "true").lower() == "true"
+        self.web_port = int(os.environ.get("WEB_PORT", "8099"))
 
         pack = compute_pack_settings(
             int(os.environ.get("MODULE_COUNT", "36")),
@@ -66,12 +70,27 @@ class Bridge:
         pack["charge_current_limit"] = float(os.environ.get("CHARGE_CURRENT", "100"))
         pack["discharge_current_limit"] = float(os.environ.get("DISCHARGE_CURRENT", "100"))
         pack["invert_current"] = self.invert_current
-        self.config = pack
+        pack["sma_enabled"] = os.environ.get("SMA_ENABLED", "true").lower() == "true"
+        pack["can_watch_enabled"] = os.environ.get("CAN_WATCH_ENABLED", "true").lower() == "true"
+
+        self.settings = LiveSettings(pack)
+        self.config = self.settings.get_config()
         self.values: dict = {}
+        self.last_sma_limits: dict = {}
         self._lock = threading.Lock()
         self._bus: can.Bus | None = None
+        self._can_watch_thread: threading.Thread | None = None
         self._mqtt = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        self._settings_mqtt: SettingsMqtt | None = None
         self._setup_mqtt()
+
+    @property
+    def sma_enabled(self) -> bool:
+        return bool(self.settings.get("sma_enabled", True))
+
+    @property
+    def can_watch_enabled(self) -> bool:
+        return bool(self.settings.get("can_watch_enabled", True))
 
     def _setup_mqtt(self) -> None:
         host = os.environ.get("MQTT_HOST", "core-mosquitto")
@@ -80,9 +99,40 @@ class Bridge:
         password = os.environ.get("MQTT_PASSWORD", "")
         if user:
             self._mqtt.username_pw_set(user, password)
+        self._mqtt.on_connect = self._on_mqtt_connect
+        self._mqtt.on_message = self._on_mqtt_message
         self._mqtt.connect(host, port, 60)
         self._mqtt.loop_start()
+        self._settings_mqtt = SettingsMqtt(self._mqtt, self.device, self.settings)
+        self.settings.register_callback(self._on_setting_changed)
         log.info("MQTT connected to %s:%s", host, port)
+
+    def _on_mqtt_connect(self, client, userdata, flags, reason_code, properties=None) -> None:
+        if self._settings_mqtt:
+            self._settings_mqtt.subscribe()
+
+    def _on_mqtt_message(self, client, userdata, msg) -> None:
+        if self._settings_mqtt:
+            self._settings_mqtt.handle_message(msg.topic, msg.payload.decode())
+
+    def _on_setting_changed(self, key: str, value) -> None:
+        with self._lock:
+            self.config = self.settings.get_config()
+        if self._settings_mqtt:
+            self._settings_mqtt._publish_setting_state(key, value)
+        if key == "can_watch_enabled":
+            self._restart_can_watch()
+
+    def apply_settings(self, updates: dict) -> dict:
+        errors = self.settings.apply(updates)
+        if not errors:
+            with self._lock:
+                self.config = self.settings.get_config()
+            if self._settings_mqtt:
+                for key in updates:
+                    if key in updates and key not in errors:
+                        self._settings_mqtt._publish_setting_state(key, self.settings.get(key))
+        return errors
 
     def _ensure_bus(self) -> None:
         if self._bus is None:
@@ -107,6 +157,9 @@ class Bridge:
             if device_class:
                 payload["device_class"] = device_class
             self._mqtt.publish(topic, json.dumps(payload), retain=True)
+        if self._settings_mqtt:
+            self._settings_mqtt.publish_discovery()
+            self._settings_mqtt.publish_all_states()
 
     def publish_state(self, values: dict) -> None:
         for key in SENSOR_MAP:
@@ -115,12 +168,16 @@ class Bridge:
 
     def send_sma(self) -> None:
         if not self.sma_enabled:
+            time.sleep(1.0)
             return
         with self._lock:
             if self.values.get("state_of_charge") is None:
                 return
             values = enrich_values(self.values, self.config)
             messages = build_sma_messages(values, self.config)
+            self.last_sma_limits = compute_closed_loop_limits(values, self.config)
+        if self._settings_mqtt and self.last_sma_limits:
+            self._settings_mqtt.publish_sma_output(self.last_sma_limits)
         self._ensure_bus()
         for can_id, payload in messages:
             msg = can.Message(
@@ -147,7 +204,7 @@ class Bridge:
             log.debug("UDP update from %s: %s", addr, parsed)
 
     def sma_loop(self) -> None:
-        log.info("SMA Sunny Island CAN output on %s (enabled=%s)", self.can_iface, self.sma_enabled)
+        log.info("SMA Sunny Island CAN output on %s", self.can_iface)
         while True:
             try:
                 self.send_sma()
@@ -157,6 +214,10 @@ class Bridge:
                     self._bus.shutdown()
                     self._bus = None
                 time.sleep(2.0)
+
+    def _restart_can_watch(self) -> None:
+        # CAN watch thread runs until process exit; toggling off stops processing via flag
+        pass
 
     def can_watch_loop(self) -> None:
         mqtt_client = self._mqtt if self.can_watch_mqtt else None
@@ -168,17 +229,26 @@ class Bridge:
             device_name=self.can_watch_device,
             bus=self._bus,
         )
-        service.run()
+        while True:
+            if not self.can_watch_enabled:
+                time.sleep(1.0)
+                continue
+            try:
+                service.run()
+            except Exception:
+                log.exception("CAN watch error")
+                time.sleep(2.0)
 
     def run(self) -> None:
-        parallel = self.config["module_count"] // self.config["modules_in_series"]
+        cfg = self.config
+        parallel = cfg["module_count"] // cfg["modules_in_series"]
         log.info(
             "Pack: %s modules (2S%sP), %.1f kWh, %.1f V nominal, %s cells in series",
-            self.config["module_count"],
+            cfg["module_count"],
             parallel,
-            self.config["pack_size"],
-            self.config["nominal_voltage"],
-            self.config["cells_in_series"],
+            cfg["pack_size"],
+            cfg["nominal_voltage"],
+            cfg["cells_in_series"],
         )
         if self.setup_can:
             setup_can_interface(self.can_iface, self.can_bitrate)
@@ -188,11 +258,11 @@ class Bridge:
         self._ensure_bus()
         self.publish_discovery()
 
-        if self.sma_enabled:
-            threading.Thread(target=self.sma_loop, daemon=True).start()
-        if self.can_watch_enabled:
-            threading.Thread(target=self.can_watch_loop, daemon=True).start()
+        if self.web_enabled:
+            start_web_dashboard(self, "0.0.0.0", self.web_port)
 
+        threading.Thread(target=self.sma_loop, daemon=True).start()
+        threading.Thread(target=self.can_watch_loop, daemon=True).start()
         self.udp_loop()
 
 

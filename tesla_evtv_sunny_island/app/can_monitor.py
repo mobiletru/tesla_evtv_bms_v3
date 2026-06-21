@@ -12,6 +12,7 @@ from collections import Counter
 import can
 
 from app.can_setup import read_can_stats, setup_can_interface
+from app.mqtt_discovery import SUNNY_ISLAND_SENSORS, extract_sunny_island_values
 from app.sma_decode import BMS_IDS, CAN_ID_LIMITS, CAN_ID_SOC, SMA_ALL_IDS, decode_frame, format_frame
 
 log = logging.getLogger("sma_can_monitor")
@@ -29,14 +30,16 @@ class CanWatchService:
         filter_mode: str = "sma",
         summary_interval: float = 30,
         mqtt_client=None,
-        device_name: str = "sunny_island_can",
+        si_device: str = "sunny_island",
+        enabled_si_metrics: set[str] | None = None,
         bus: can.Bus | None = None,
     ) -> None:
         self.iface = iface
         self.filter_mode = filter_mode
         self.summary_interval = summary_interval
         self.mqtt = mqtt_client
-        self.device_name = device_name
+        self.si_device = si_device
+        self.enabled_si_metrics = enabled_si_metrics or set(SUNNY_ISLAND_SENSORS)
         self.bus = bus
         self._owns_bus = bus is None
         self.counts: Counter[int] = Counter()
@@ -75,14 +78,11 @@ class CanWatchService:
     def _publish_mqtt(self, decoded: dict) -> None:
         if not self.mqtt:
             return
-        can_id = decoded["can_id"]
-        base = f"sunny_island_can/{self.device_name}/{can_id:03X}"
-        self.mqtt.publish(f"{base}/summary", format_frame(decoded), retain=True)
-        for key, value in decoded.items():
-            if key in ("can_id", "can_id_hex", "name", "raw", "direction"):
+        values = extract_sunny_island_values(decoded)
+        for key, value in values.items():
+            if key not in self.enabled_si_metrics:
                 continue
-            if value is not None and not isinstance(value, (list, dict)):
-                self.mqtt.publish(f"{base}/{key}", str(value), retain=True)
+            self.mqtt.publish(f"tesla_evtv/{self.si_device}/{key}", str(value), retain=True)
 
     def _print_summary(self, now: float) -> None:
         log.info("--- CAN watch summary (%s) ---", self.iface)
@@ -101,10 +101,11 @@ class CanWatchService:
 
         self._ensure_bus()
         log.info(
-            "CAN watch on %s (filter=%s, summary every %.0fs)",
+            "CAN watch on %s (filter=%s, summary every %.0fs, mqtt metrics=%s)",
             self.iface,
             self.filter_mode,
             self.summary_interval,
+            len(self.enabled_si_metrics) if self.mqtt else 0,
         )
 
         last_summary = time.monotonic()
@@ -158,8 +159,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-setup-can", action="store_false", dest="setup_can")
     parser.add_argument("--filter", choices=["all", "sma", "bms"], default=os.environ.get("CAN_FILTER", "sma"))
     parser.add_argument("--summary-interval", type=float, default=float(os.environ.get("SUMMARY_INTERVAL", "30")))
-    parser.add_argument("--mqtt", action="store_true", default=os.environ.get("MQTT_ENABLED", "false").lower() == "true")
-    parser.add_argument("--device-name", default=os.environ.get("DEVICE_NAME", "sunny_island_can"))
+    parser.add_argument("--mqtt", action="store_true", default=os.environ.get("PUBLISH_MQTT", "false").lower() == "true")
+    parser.add_argument("--device-name", default=os.environ.get("SUNNY_ISLAND_DEVICE_NAME", "sunny_island"))
     parser.add_argument("--log-level", default=os.environ.get("LOG_LEVEL", "INFO"))
     args = parser.parse_args(argv)
 
@@ -174,7 +175,7 @@ def main(argv: list[str] | None = None) -> int:
         filter_mode=args.filter,
         summary_interval=args.summary_interval,
         mqtt_client=mqtt_client,
-        device_name=args.device_name,
+        si_device=args.device_name,
     )
     try:
         service.run(setup_can=args.setup_can, bitrate=args.bitrate)

@@ -1,0 +1,20 @@
+title: Tesla BMS (Minimal)
+views:
+  - title: Overview
+    path: overview
+    icon: mdi:battery
+    cards:
+      - type: gauge
+        entity: sensor.tesla_bms_state_of_charge
+        name: SOC
+        min: 0
+        max: 100
+      - type: entities
+        entities:
+          - sensor.tesla_bms_volts
+          - sensor.tesla_bms_current
+          - sensor.tesla_bms_power
+          - sensor.tesla_bms_battery_status
+          - sensor.sunny_island_dc_voltage
+          - sensor.sunny_island_dc_current
+          - sensor.tesla_bms_sma_charge_current

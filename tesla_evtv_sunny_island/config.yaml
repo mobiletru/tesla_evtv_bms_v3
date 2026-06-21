@@ -1,7 +1,7 @@
 name: Tesla EVTV BMS + Sunny Island
-version: "1.1.0"
+version: "1.2.0"
 slug: tesla_evtv_sunny_island
-description: EVTV Tesla BMS UDP, MQTT sensors, SMA closed-loop CAN, and CAN bus monitor
+description: EVTV BMS, configurable MQTT dashboard, SMA closed-loop CAN, CAN monitor
 url: https://github.com/mobiletru/tesla_evtv_bms_v3
 arch:
   - aarch64
@@ -23,10 +23,33 @@ options:
   sma_enabled: true
   can_watch_enabled: true
   can_watch_filter: sma
-  can_watch_mqtt: false
   can_watch_summary_interval: 30
-  can_watch_device_name: sunny_island_can
+  publish_mqtt: true
   device_name: tesla_bms
+  sunny_island_device_name: sunny_island
+  publish_bms:
+    - state_of_charge
+    - volts
+    - current
+    - power
+    - lowest_cell
+    - highest_cell
+    - average_cell
+    - max_temp
+    - min_temp
+    - battery_status
+  publish_sma_limits:
+    - charge_voltage
+    - charge_current
+    - discharge_current
+    - discharge_voltage
+  publish_sunny_island:
+    - dc_voltage
+    - dc_current
+    - grid_power
+    - inverter_power
+    - load_power
+    - input_voltage
   module_count: 36
   modules_in_series: 2
   min_cell_volts: 3.2
@@ -43,10 +66,46 @@ schema:
   sma_enabled: bool
   can_watch_enabled: bool
   can_watch_filter: list(all|sma|bms)
-  can_watch_mqtt: bool
   can_watch_summary_interval: int
-  can_watch_device_name: str
+  publish_mqtt: bool
   device_name: str
+  sunny_island_device_name: str
+  publish_bms:
+    multiple: true
+    optional: true
+    options:
+      - state_of_charge
+      - volts
+      - current
+      - power
+      - lowest_cell
+      - highest_cell
+      - average_cell
+      - max_temp
+      - min_temp
+      - battery_status
+  publish_sma_limits:
+    multiple: true
+    optional: true
+    options:
+      - charge_voltage
+      - charge_current
+      - discharge_current
+      - discharge_voltage
+  publish_sunny_island:
+    multiple: true
+    optional: true
+    options:
+      - dc_voltage
+      - dc_current
+      - grid_power
+      - grid_power_slave
+      - inverter_power
+      - inverter_power_slave
+      - load_power
+      - input_voltage
+      - grid_frequency
+      - output_voltage
   module_count: int
   modules_in_series: int
   min_cell_volts: float

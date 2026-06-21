@@ -94,10 +94,12 @@ CURRENT_KEYS = {"current", "tcch_amps"}
 TEMP_KEYS = {"max_temp", "min_temp"}
 ENUM_KEYS = {"battery_status", "low_volt", "high_volt"}
 TEXT_KEYS = {"summary"}
-MEASUREMENT_KEYS = {"power", "volts", "current", "state_of_charge", "cell_difference",
-                     "trigger_cell_voltage", "power_average", "power_hourly_average",
-                     "hours_to_empty", "hours_to_full", "max_temp", "min_temp",
-                     "charge", "discharge", "freq_shift_volts", "tcch_amps"}
+MEASUREMENT_KEYS = {
+    "power", "volts", "current", "state_of_charge", "cell_difference",
+    "trigger_cell_voltage", "power_average", "power_hourly_average",
+    "hours_to_empty", "hours_to_full", "max_temp", "min_temp",
+    "charge", "discharge", "freq_shift_volts", "tcch_amps",
+}
 
 for _base in UTILITY_METER_BASES:
     for _label in UTILITY_METER_PERIODS:
@@ -137,7 +139,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             coordinator["energy"] = {
                 "charge": coordinator["values"].get("charge_energy", 0.0),
                 "discharge": coordinator["values"].get("discharge_energy", 0.0),
-                "last_update": time.monotonic()
+                "last_update": time.monotonic(),
             }
 
         coordinator["values"].update(values)
@@ -164,19 +166,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             v["discharge"] = abs(power) if power < 0 else 0
             v["charge"] = power if power > 0 else 0
 
-            now = time.monotonic()
-            delta = now - coordinator["energy"]["last_update"]
-            coordinator["energy"]["last_update"] = now
+        now = time.monotonic()
+        delta = now - coordinator["energy"]["last_update"]
+        coordinator["energy"]["last_update"] = now
 
+        if power is not None:
             if power < 0:
                 coordinator["energy"]["discharge"] += (abs(power) * delta / 3600) / 1000
             elif power > 0:
                 coordinator["energy"]["charge"] += (power * delta / 3600) / 1000
 
-            v["discharge_energy"] = round(coordinator["energy"]["discharge"], 3)
-            v["charge_energy"] = round(coordinator["energy"]["charge"], 3)
+        v["discharge_energy"] = round(coordinator["energy"]["discharge"], 3)
+        v["charge_energy"] = round(coordinator["energy"]["charge"], 3)
 
-        # Utility meter accumulation
         for base_key in UTILITY_METER_BASES:
             if base_key in v:
                 for label in UTILITY_METER_PERIODS:
@@ -187,11 +189,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                     accumulated = v[base_key] - coordinator[last_key]
                     v[meter_key] = round(max(accumulated, 0.0), 3)
 
-        # Cell Difference
         if all(k in v for k in ("highest_cell", "lowest_cell")):
             v["cell_difference"] = round(v["highest_cell"] - v["lowest_cell"], 4)
 
-        # Trigger Cell Voltage
         if soc is not None:
             if soc >= 75 and "highest_cell" in v:
                 v["trigger_cell_voltage"] = v["highest_cell"]
@@ -200,7 +200,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             elif "average_cell" in v:
                 v["trigger_cell_voltage"] = v["average_cell"]
 
-        # Low Voltage Warning
         lowest = v.get("lowest_cell")
         if lowest is not None:
             min_v = config["min_cell_volts"]
@@ -211,7 +210,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             else:
                 v["low_volt"] = "Normal"
 
-        # High Voltage Warning
         highest = v.get("highest_cell")
         if highest is not None:
             max_v = config["max_cell_volts"]
@@ -229,7 +227,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     async_dispatcher_connect(
         hass,
         SIGNAL_UPDATE_ENTITY.format(name),
-        handle_update
+        handle_update,
     )
 
     def create_utility_updater(base_key):
@@ -396,17 +394,26 @@ class TeslaEvtvSensor(SensorEntity, RestoreEntity):
             "manufacturer": "EVTV",
             "model": "Tesla BMS V3",
             "entry_type": "service",
-            "suggested_area": "Battery Storage"
+            "suggested_area": "Battery Storage",
         }
 
-    SKIP_RESTORE_KEYS = TEXT_KEYS | {"hours_to_empty", "hours_to_full",
-                                     "battery_status", "charge", "discharge",
-                                     "power_average", "power_hourly_average"}
+    SKIP_RESTORE_KEYS = TEXT_KEYS | {
+        "hours_to_empty",
+        "hours_to_full",
+        "battery_status",
+        "charge",
+        "discharge",
+        "power_average",
+        "power_hourly_average",
+    }
 
     async def async_added_to_hass(self):
         old_state = await self.async_get_last_state()
-        if (old_state and old_state.state not in (None, "unknown", "unavailable", "")
-                and self._key not in self.SKIP_RESTORE_KEYS):
+        if (
+            old_state
+            and old_state.state not in (None, "unknown", "unavailable", "")
+            and self._key not in self.SKIP_RESTORE_KEYS
+        ):
             try:
                 restored = float(old_state.state)
             except ValueError:
@@ -431,6 +438,6 @@ class TeslaEvtvSensor(SensorEntity, RestoreEntity):
             async_dispatcher_connect(
                 self.hass,
                 SIGNAL_UPDATE_ENTITY.format(self._device),
-                handle_update
+                handle_update,
             )
         )

@@ -1,0 +1,8 @@
+build_from:
+  aarch64: ghcr.io/home-assistant/aarch64-base-python:3.12-alpine3.20
+  amd64: ghcr.io/home-assistant/amd64-base-python:3.12-alpine3.20
+  armv7: ghcr.io/home-assistant/armv7-base-python:3.12-alpine3.20
+labels:
+  org.opencontainers.image.title: Tesla EVTV BMS + Sunny Island
+  org.opencontainers.image.description: EVTV BMS to MQTT and SMA Sunny Island CAN bridge
+  org.opencontainers.image.source: https://github.com/mobiletru/tesla_evtv_bms_v3

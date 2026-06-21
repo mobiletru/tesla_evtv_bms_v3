@@ -42,6 +42,18 @@ SUNNY_ISLAND_SENSORS: dict[str, dict[str, Any]] = {
     "output_voltage": {"name": "Output Voltage", "unit": "V", "device_class": "voltage", "can_id": 0x304, "field": "output_voltage_v"},
 }
 
+# Sunny Island via Modbus RS485 / TCP (SMA profile unit ID 3)
+MODBUS_SI_SENSORS: dict[str, dict[str, Any]] = {
+    "dc_voltage": {"name": "DC Voltage (Modbus)", "unit": "V", "device_class": "voltage"},
+    "dc_current": {"name": "DC Current (Modbus)", "unit": "A", "device_class": "current"},
+    "inverter_power": {"name": "Inverter Power (Modbus)", "unit": "kW", "device_class": "power"},
+    "grid_power": {"name": "Grid Power (Modbus)", "unit": "kW", "device_class": "power"},
+    "grid_feed_in_power": {"name": "Grid Feed-in (Modbus)", "unit": "kW", "device_class": "power"},
+    "si_battery_soc": {"name": "SI Battery SOC (Modbus)", "unit": "%", "device_class": "battery"},
+    "si_battery_temp": {"name": "SI Battery Temp (Modbus)", "unit": "°C", "device_class": "temperature"},
+    "system_state": {"name": "SI System State", "unit": None, "device_class": None},
+}
+
 BMS_DEVICE = {
     "manufacturer": "EVTV",
     "model": "Tesla BMS V3",
@@ -87,6 +99,14 @@ def load_publish_config() -> dict[str, Any]:
         "sunny_island": _parse_list_env(
             "PUBLISH_SUNNY_ISLAND",
             ["dc_voltage", "dc_current", "grid_power", "inverter_power", "load_power", "input_voltage"],
+        ),
+        "modbus_enabled": os.environ.get("MODBUS_ENABLED", "false").lower() == "true",
+        "modbus": _parse_list_env(
+            "PUBLISH_MODBUS",
+            [
+                "dc_voltage", "dc_current", "inverter_power", "grid_power",
+                "grid_feed_in_power", "si_battery_soc", "si_battery_temp", "system_state",
+            ],
         ),
     }
 
@@ -181,6 +201,23 @@ def publish_all_discovery(client, cfg: dict[str, Any]) -> None:
             device_class=meta["device_class"],
         )
         client.publish(topic, json.dumps(payload), retain=True)
+
+    if cfg.get("modbus_enabled"):
+        for key in cfg.get("modbus", set()):
+            if key not in MODBUS_SI_SENSORS:
+                continue
+            meta = MODBUS_SI_SENSORS[key]
+            topic = f"homeassistant/sensor/{si_id}/{key}/config"
+            payload = _discovery_payload(
+                object_id=key,
+                name=meta["name"],
+                state_topic=f"tesla_evtv/{si_id}/{key}",
+                unique_id=f"{si_id}_modbus_{key}",
+                device=si_dev,
+                unit=meta["unit"],
+                device_class=meta["device_class"],
+            )
+            client.publish(topic, json.dumps(payload), retain=True)
 
 
 def extract_sunny_island_values(decoded: dict) -> dict[str, Any]:

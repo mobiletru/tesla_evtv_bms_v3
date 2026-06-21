@@ -18,11 +18,13 @@ from app.can_monitor import CanWatchService
 from app.can_setup import setup_can_interface
 from app.charge_control import compute_closed_loop_limits
 from app.live_settings import LiveSettings
+from app.modbus_poll import SunnyIslandModbus
 from app.mqtt_discovery import load_publish_config, publish_all_discovery, sma_limits_to_mqtt
 from app.pack_config import compute_pack_settings
 from app.parser import enrich_values, parse_udp_packet
 from app.settings_mqtt import SettingsMqtt
 from app.sma_can import SMA_MESSAGE_INTERVAL, build_sma_messages
+from app.sma_modbus import ModbusConfig
 from app.web_dashboard import start_web_dashboard
 
 logging.basicConfig(
@@ -47,6 +49,17 @@ class Bridge:
         self.web_enabled = os.environ.get("WEB_ENABLED", "true").lower() == "true"
         self.web_port = int(os.environ.get("WEB_PORT", "8099"))
 
+        self.modbus_cfg = ModbusConfig(
+            enabled=self.publish_cfg.get("modbus_enabled", False),
+            mode=os.environ.get("MODBUS_MODE", "rtu"),
+            host=os.environ.get("MODBUS_HOST", "192.168.1.100"),
+            port=int(os.environ.get("MODBUS_PORT", "502")),
+            unit_id=int(os.environ.get("MODBUS_UNIT_ID", "3")),
+            serial_port=os.environ.get("MODBUS_SERIAL", "/dev/ttyUSB0"),
+            baudrate=int(os.environ.get("MODBUS_BAUDRATE", "9600")),
+            poll_interval=float(os.environ.get("MODBUS_POLL_INTERVAL", "5")),
+        )
+
         pack = compute_pack_settings(
             int(os.environ.get("MODULE_COUNT", "36")),
             int(os.environ.get("MODULES_IN_SERIES", "2")),
@@ -65,6 +78,8 @@ class Bridge:
         self.config = self.settings.get_config()
         self.values: dict = {}
         self.last_sma_limits: dict = {}
+        self.last_modbus: dict = {}
+        self._modbus: SunnyIslandModbus | None = None
         self._lock = threading.Lock()
         self._bus: can.Bus | None = None
         self._mqtt = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
@@ -210,6 +225,22 @@ class Bridge:
         )
         service.run()
 
+    def modbus_loop(self) -> None:
+        mqtt_client = self._mqtt if self.publish_cfg["publish_mqtt"] else None
+        self._modbus = SunnyIslandModbus(
+            self.modbus_cfg,
+            mqtt_client=mqtt_client,
+            si_device=self.si_device,
+        )
+        original_publish = self._modbus._publish
+
+        def cached_publish(values):
+            self.last_modbus = dict(values)
+            original_publish(values)
+
+        self._modbus._publish = cached_publish
+        self._modbus.run()
+
     def run(self) -> None:
         cfg = self.config
         parallel = cfg["module_count"] // cfg["modules_in_series"]
@@ -235,6 +266,8 @@ class Bridge:
 
         threading.Thread(target=self.sma_loop, daemon=True).start()
         threading.Thread(target=self.can_watch_loop, daemon=True).start()
+        if self.modbus_cfg.enabled:
+            threading.Thread(target=self.modbus_loop, daemon=True).start()
         self.udp_loop()
 
 

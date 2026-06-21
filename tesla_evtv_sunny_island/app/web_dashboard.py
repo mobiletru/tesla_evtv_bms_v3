@@ -143,9 +143,14 @@ async function refresh() {
       `<strong>${P.pack_size_kwh||'?'} kWh</strong> · ${P.cells_in_series||'?'}S · ` +
       `charge ${fmt(P.charge_voltage)} V · discharge floor ${fmt(P.discharge_voltage_limit)} V`;
     const S = d.sma_output || {};
-    document.getElementById('smaOut').innerHTML = S.charge_current_limit != null
-      ? `SMA CAN out: charge <strong>${fmt(S.charge_voltage)} V / ${fmt(S.charge_current_limit)} A</strong> · discharge ${fmt(S.discharge_current_limit)} A`
-      : 'SMA CAN: waiting for BMS data…';
+    const M = d.modbus || {};
+    const modbusLine = M.battery_voltage != null
+      ? `Modbus SI: <strong>${fmt(M.battery_voltage)} V</strong> ${fmt(M.battery_current)} A · SOC ${fmt(M.battery_soc,0)}% · ${fmt(M.active_power,0)} W`
+      : '';
+    document.getElementById('smaOut').innerHTML =
+      (S.charge_current_limit != null
+        ? `SMA CAN out: charge <strong>${fmt(S.charge_voltage)} V / ${fmt(S.charge_current_limit)} A</strong> · discharge ${fmt(S.discharge_current_limit)} A<br>`
+        : 'SMA CAN: waiting for BMS data…') + modbusLine;
     if (Object.keys(pending).length === 0) renderSettings(d.settings || {});
   } catch(e) {
     document.getElementById('conn').textContent = 'Offline';
@@ -205,6 +210,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 live = dict(enrich_snapshot(bridge.values, bridge.settings.get_config()))
             snap = bridge.settings.snapshot_for_api(live)
             snap["sma_output"] = bridge.last_sma_limits
+            snap["modbus"] = bridge.last_modbus
             self._json_response(200, snap)
             return
         self.send_error(404)

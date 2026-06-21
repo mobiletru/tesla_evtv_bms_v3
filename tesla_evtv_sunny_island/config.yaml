@@ -1,121 +1,157 @@
-name: Tesla EVTV BMS + Sunny Island
-version: "1.3.0"
-slug: tesla_evtv_sunny_island
-description: EVTV BMS, live web dashboard, configurable MQTT, SMA closed-loop CAN
-url: https://github.com/mobiletru/tesla_evtv_bms_v3
-arch:
-  - aarch64
-  - amd64
-  - armv7
-startup: application
-init: false
-host_network: true
-webui: "http://[HOST]:[PORT:8099]/"
-ports:
-  8099/tcp: 8099
-privileged:
-  - NET_ADMIN
-services:
-  - mqtt:need
-options:
-  log_level: info
-  udp_port: 6850
-  can_interface: can0
-  can_bitrate: 500000
-  setup_can: true
-  sma_enabled: true
-  can_watch_enabled: true
-  can_watch_filter: sma
-  can_watch_summary_interval: 30
-  web_enabled: true
-  web_port: 8099
-  publish_mqtt: true  device_name: tesla_bms
-  sunny_island_device_name: sunny_island
-  publish_bms:
-    - state_of_charge
-    - volts
-    - current
-    - power
-    - lowest_cell
-    - highest_cell
-    - average_cell
-    - max_temp
-    - min_temp
-    - battery_status
-  publish_sma_limits:
-    - charge_voltage
-    - charge_current
-    - discharge_current
-    - discharge_voltage
-  publish_sunny_island:
-    - dc_voltage
-    - dc_current
-    - grid_power
-    - inverter_power
-    - load_power
-    - input_voltage
-  module_count: 36
-  modules_in_series: 2
-  min_cell_volts: 3.2
-  max_cell_volts: 4.1
-  charge_current_limit: 100
-  discharge_current_limit: 100
-  invert_current: false
-schema:
-  log_level: list(trace|debug|info|notice|warning|error|fatal)?
-  udp_port: port
-  can_interface: str
-  can_bitrate: int
-  setup_can: bool
-  sma_enabled: bool
-  can_watch_enabled: bool
-  can_watch_filter: list(all|sma|bms)
-  can_watch_summary_interval: int
-  web_enabled: bool
-  web_port: port
-  publish_mqtt: bool
-  device_name: str
-  sunny_island_device_name: str
-  publish_bms:
-    multiple: true
-    optional: true
-    options:
-      - state_of_charge
-      - volts
-      - current
-      - power
-      - lowest_cell
-      - highest_cell
-      - average_cell
-      - max_temp
-      - min_temp
-      - battery_status
-  publish_sma_limits:
-    multiple: true
-    optional: true
-    options:
-      - charge_voltage
-      - charge_current
-      - discharge_current
-      - discharge_voltage
-  publish_sunny_island:
-    multiple: true
-    optional: true
-    options:
-      - dc_voltage
-      - dc_current
-      - grid_power
-      - grid_power_slave
-      - inverter_power
-      - inverter_power_slave
-      - load_power
-      - input_voltage
-      - grid_frequency
-      - output_voltage
-  module_count: int
-  modules_in_series: int
-  min_cell_volts: float
-  max_cell_volts: float
-  charge_current_limit: float
-  discharge_current_limit: float
-  invert_current: bool
+name: Tesla EVTV BMS + Sunny Island
+version: "1.4.0"
+slug: tesla_evtv_sunny_island
+description: EVTV BMS, SMA Modbus + CAN, live web dashboard, MQTT
+url: https://github.com/mobiletru/tesla_evtv_bms_v3
+arch:
+  - aarch64
+  - amd64
+  - armv7
+startup: application
+init: false
+host_network: true
+webui: "http://[HOST]:[PORT:8099]/"
+ports:
+  8099/tcp: 8099
+privileged:
+  - NET_ADMIN
+services:
+  - mqtt:need
+options:
+  log_level: info
+  udp_port: 6850
+  can_interface: can0
+  can_bitrate: 500000
+  setup_can: true
+  sma_enabled: true
+  can_watch_enabled: true
+  can_watch_filter: sma
+  can_watch_summary_interval: 30
+  web_enabled: true
+  web_port: 8099
+  publish_mqtt: true
+  modbus_enabled: false
+  modbus_mode: rtu
+  modbus_host: 192.168.1.100
+  modbus_port: 502
+  modbus_unit_id: 3
+  modbus_serial: /dev/ttyUSB0
+  modbus_baudrate: 9600
+  modbus_poll_interval: 5
+  device_name: tesla_bms
+  sunny_island_device_name: sunny_island
+  publish_bms:
+    - state_of_charge
+    - volts
+    - current
+    - power
+    - lowest_cell
+    - highest_cell
+    - average_cell
+    - max_temp
+    - min_temp
+    - battery_status
+  publish_sma_limits:
+    - charge_voltage
+    - charge_current
+    - discharge_current
+    - discharge_voltage
+  publish_sunny_island:
+    - dc_voltage
+    - dc_current
+    - grid_power
+    - inverter_power
+    - load_power
+    - input_voltage
+  publish_modbus:
+    - dc_voltage
+    - dc_current
+    - inverter_power
+    - grid_power
+    - si_battery_soc
+    - si_battery_temp
+  module_count: 36
+  modules_in_series: 2
+  min_cell_volts: 3.2
+  max_cell_volts: 4.1
+  charge_current_limit: 100
+  discharge_current_limit: 100
+  invert_current: false
+schema:
+  log_level: list(trace|debug|info|notice|warning|error|fatal)?
+  udp_port: port
+  can_interface: str
+  can_bitrate: int
+  setup_can: bool
+  sma_enabled: bool
+  can_watch_enabled: bool
+  can_watch_filter: list(all|sma|bms)
+  can_watch_summary_interval: int
+  web_enabled: bool
+  web_port: port
+  publish_mqtt: bool
+  modbus_enabled: bool
+  modbus_mode: list(tcp|rtu)
+  modbus_host: str
+  modbus_port: port
+  modbus_unit_id: int
+  modbus_serial: str
+  modbus_baudrate: int
+  modbus_poll_interval: int
+  device_name: str
+  sunny_island_device_name: str
+  publish_bms:
+    multiple: true
+    optional: true
+    options:
+      - state_of_charge
+      - volts
+      - current
+      - power
+      - lowest_cell
+      - highest_cell
+      - average_cell
+      - max_temp
+      - min_temp
+      - battery_status
+  publish_sma_limits:
+    multiple: true
+    optional: true
+    options:
+      - charge_voltage
+      - charge_current
+      - discharge_current
+      - discharge_voltage
+  publish_sunny_island:
+    multiple: true
+    optional: true
+    options:
+      - dc_voltage
+      - dc_current
+      - grid_power
+      - grid_power_slave
+      - inverter_power
+      - inverter_power_slave
+      - load_power
+      - input_voltage
+      - grid_frequency
+      - output_voltage
+  publish_modbus:
+    multiple: true
+    optional: true
+    options:
+      - dc_voltage
+      - dc_current
+      - inverter_power
+      - grid_power
+      - grid_feed_in_power
+      - si_battery_soc
+      - si_battery_temp
+      - system_state
+  module_count: int
+  modules_in_series: int
+  min_cell_volts: float
+  max_cell_volts: float
+  charge_current_limit: float
+  discharge_current_limit: float
+  invert_current: bool

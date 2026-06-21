@@ -57,7 +57,40 @@ Only enabled metrics get MQTT discovery entities.
 | CAN bitrate | 500 kbps |
 | Web dashboard | port 8099 |
 
-## Sunny Island wiring (ComSync RJ45)
+## Sunny Island Modbus (RS485 / TCP)
+
+**Closed-loop Ext-BMS charge control stays on CAN** — SMA requires CAN for LiIon Ext-BMS limits.
+
+**Modbus** adds inverter monitoring (and optional TCP if your SI has Ethernet/Com module):
+
+| Add-on option | Default | Description |
+|---------------|---------|-------------|
+| `modbus_enabled` | `false` | Enable Modbus polling |
+| `modbus_mode` | `rtu` | `rtu` (RS485 USB) or `tcp` |
+| `modbus_serial` | `/dev/ttyUSB0` | RS485 adapter on HA host |
+| `modbus_baudrate` | `9600` | SMA default RS485 |
+| `modbus_unit_id` | `3` | SMA default unit ID |
+| `modbus_host` | — | IP for Modbus TCP |
+| `modbus_port` | `502` | Modbus TCP port |
+| `publish_modbus` | multiselect | Which SI Modbus sensors to publish |
+
+### RS485 wiring (6048-US piggy-back)
+
+Install SMA **RS485 Piggy-Back** on the Sunny Island → USB-RS485 adapter on HA host → `modbus_serial: /dev/ttyUSB0`.
+
+Enable **Modbus** in the inverter communication menu (see SMA operating manual).
+
+### Registers read (unit ID 3)
+
+| Register | Value |
+|----------|--------|
+| 30851 | Battery voltage |
+| 30843 | Battery current |
+| 30845 | Battery SOC |
+| 30775 | Active power |
+| 30865 | Grid purchase power |
+
+## Sunny Island wiring (ComSync CAN — required for Ext-BMS)
 
 | Pin | Signal |
 |-----|--------|

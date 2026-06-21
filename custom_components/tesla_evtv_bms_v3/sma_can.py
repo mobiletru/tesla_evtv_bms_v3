@@ -5,6 +5,8 @@ from __future__ import annotations
 import struct
 from typing import Any
 
+from .charge_control import compute_closed_loop_limits
+
 INVALID_U16 = 0xFFFF
 
 CAN_ID_LIMITS = 0x351
@@ -137,12 +139,14 @@ def build_sma_messages(
     else:
         temp_c = 25.0
 
+    limits = compute_closed_loop_limits(values, config)
+
     return [
         build_limits_message(
-            config["charge_voltage"],
-            config["charge_current_limit"],
-            config["discharge_current_limit"],
-            config["discharge_voltage_limit"],
+            limits["charge_voltage"],
+            limits["charge_current_limit"],
+            limits["discharge_current_limit"],
+            limits["discharge_voltage_limit"],
         ),
         build_soc_message(soc),
         build_measurements_message(volts, current, temp_c),

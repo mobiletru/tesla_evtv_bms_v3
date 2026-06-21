@@ -147,10 +147,14 @@ async function refresh() {
     const modbusLine = M.battery_voltage != null
       ? `Modbus SI: <strong>${fmt(M.battery_voltage)} V</strong> ${fmt(M.battery_current)} A · SOC ${fmt(M.battery_soc,0)}% · ${fmt(M.active_power,0)} W`
       : '';
+    const W = d.webbox || {};
+    const webboxLine = W.webbox_plant_power != null
+      ? `<br>WebBox: ${fmt(W.webbox_plant_power,0)} W · ${W.webbox_plant_status || '—'} · SOC ${W.si_battery_soc || '—'}%`
+      : '';
     document.getElementById('smaOut').innerHTML =
       (S.charge_current_limit != null
         ? `SMA CAN out: charge <strong>${fmt(S.charge_voltage)} V / ${fmt(S.charge_current_limit)} A</strong> · discharge ${fmt(S.discharge_current_limit)} A<br>`
-        : 'SMA CAN: waiting for BMS data…') + modbusLine;
+        : 'SMA CAN: waiting for BMS data…') + modbusLine + webboxLine;
     if (Object.keys(pending).length === 0) renderSettings(d.settings || {});
   } catch(e) {
     document.getElementById('conn').textContent = 'Offline';
@@ -211,6 +215,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             snap = bridge.settings.snapshot_for_api(live)
             snap["sma_output"] = bridge.last_sma_limits
             snap["modbus"] = bridge.last_modbus
+            snap["webbox"] = bridge.last_webbox
             self._json_response(200, snap)
             return
         self.send_error(404)

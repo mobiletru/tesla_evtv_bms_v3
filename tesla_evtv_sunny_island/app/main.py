@@ -25,6 +25,8 @@ from app.parser import enrich_values, parse_udp_packet
 from app.settings_mqtt import SettingsMqtt
 from app.sma_can import SMA_MESSAGE_INTERVAL, build_sma_messages
 from app.sma_modbus import ModbusConfig
+from app.webbox_poll import WebBoxPoller
+from app.webbox_rpc import WebBoxConfig
 from app.web_dashboard import start_web_dashboard
 
 logging.basicConfig(
@@ -60,6 +62,17 @@ class Bridge:
             poll_interval=float(os.environ.get("MODBUS_POLL_INTERVAL", "5")),
         )
 
+        self.webbox_cfg = WebBoxConfig(
+            enabled=self.publish_cfg.get("webbox_enabled", False),
+            host=os.environ.get("WEBBOX_HOST", "192.168.0.168"),
+            port=int(os.environ.get("WEBBOX_PORT", "80")),
+            mode=os.environ.get("WEBBOX_MODE", "http"),
+            password=os.environ.get("WEBBOX_PASSWORD", ""),
+            poll_interval=float(os.environ.get("WEBBOX_POLL_INTERVAL", "30")),
+            device_key=os.environ.get("WEBBOX_DEVICE_KEY", ""),
+            device_name_filter=os.environ.get("WEBBOX_DEVICE_FILTER", "sunny island"),
+        )
+
         pack = compute_pack_settings(
             int(os.environ.get("MODULE_COUNT", "36")),
             int(os.environ.get("MODULES_IN_SERIES", "2")),
@@ -79,6 +92,7 @@ class Bridge:
         self.values: dict = {}
         self.last_sma_limits: dict = {}
         self.last_modbus: dict = {}
+        self.last_webbox: dict = {}
         self._modbus: SunnyIslandModbus | None = None
         self._lock = threading.Lock()
         self._bus: can.Bus | None = None
@@ -241,6 +255,28 @@ class Bridge:
         self._modbus._publish = cached_publish
         self._modbus.run()
 
+    def webbox_loop(self) -> None:
+        mqtt_client = self._mqtt if self.publish_cfg["publish_mqtt"] else None
+        poller = WebBoxPoller(
+            self.webbox_cfg,
+            mqtt_client=mqtt_client,
+            si_device=self.si_device,
+            enabled_metrics=self.publish_cfg.get("webbox"),
+        )
+        interval = max(30.0, self.webbox_cfg.poll_interval)
+        log.info(
+            "WebBox RPC http://%s:%s/rpc every %ss",
+            self.webbox_cfg.host,
+            self.webbox_cfg.port,
+            interval,
+        )
+        while True:
+            try:
+                self.last_webbox = poller.poll_once()
+            except Exception as err:
+                log.warning("WebBox poll error: %s", err)
+            time.sleep(interval)
+
     def run(self) -> None:
         cfg = self.config
         parallel = cfg["module_count"] // cfg["modules_in_series"]
@@ -268,6 +304,8 @@ class Bridge:
         threading.Thread(target=self.can_watch_loop, daemon=True).start()
         if self.modbus_cfg.enabled:
             threading.Thread(target=self.modbus_loop, daemon=True).start()
+        if self.webbox_cfg.enabled:
+            threading.Thread(target=self.webbox_loop, daemon=True).start()
         self.udp_loop()
 
 

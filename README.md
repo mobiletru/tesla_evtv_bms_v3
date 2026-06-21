@@ -7,7 +7,7 @@ Home Assistant OS add-on: EVTV BMS monitoring, SMA closed-loop CAN, **live setti
 1. Install **Mosquitto broker** add-on
 2. **Settings → Add-ons → Add-on Store → ⋮ → Repositories**
 3. Add: `https://github.com/mobiletru/tesla_evtv_bms_v3`
-4. Install **Tesla EVTV BMS + Sunny Island** (v1.3+)
+4. Install **Tesla EVTV BMS + Sunny Island** (v1.5+)
 5. Start the add-on
 
 ## Live settings dashboard (web)
@@ -45,6 +45,8 @@ In the add-on configuration, edit the lists:
 - `publish_bms` — pack/cell/temp sensors
 - `publish_sma_limits` — outbound CAN limit sensors
 - `publish_sunny_island` — inverter CAN metrics (DC V/I, grid power, etc.)
+- `publish_modbus` — Sunny Island Modbus registers
+- `publish_webbox` — Sunny WebBox RPC plant / inverter data
 
 Only enabled metrics get MQTT discovery entities.
 
@@ -89,6 +91,31 @@ Enable **Modbus** in the inverter communication menu (see SMA operating manual).
 | 30845 | Battery SOC |
 | 30775 | Active power |
 | 30865 | Grid purchase power |
+
+## Sunny WebBox RPC (data logger)
+
+If your plant uses an **SMA Sunny WebBox** (or WebBox with data logger), the add-on can poll plant and Sunny Island metrics over **JSON-RPC** instead of (or alongside) CAN/Modbus.
+
+| Add-on option | Default | Description |
+|---------------|---------|-------------|
+| `webbox_enabled` | `false` | Enable WebBox polling |
+| `webbox_mode` | `http` | `http` (`POST http://<ip>/rpc`) or `udp` (port 34268) |
+| `webbox_host` | `192.168.0.168` | WebBox IP address |
+| `webbox_port` | `80` | HTTP port (ignored for UDP mode) |
+| `webbox_password` | *(empty)* | WebBox password — required only for `GetParameter` / `SetParameter` |
+| `webbox_poll_interval` | `30` | Seconds between polls (SMA minimum **30 s**) |
+| `webbox_device_key` | *(empty)* | Sunny Island device key — auto-discovered if blank |
+| `webbox_device_filter` | `sunny island` | Name filter for auto-discovery |
+| `publish_webbox` | multiselect | Which WebBox sensors to publish |
+
+### Typical setup
+
+1. Set `webbox_enabled: true` and `webbox_host` to your WebBox IP.
+2. Leave `webbox_device_key` empty — the add-on calls `GetDevices` and picks the Sunny Island.
+3. Choose metrics under `publish_webbox` (plant power, energy today, SI SOC, DC V/I, etc.).
+4. Open the live dashboard — WebBox plant power and SOC appear under the SMA output line when data is flowing.
+
+**Note:** Closed-loop **LiIon Ext-BMS charge control still requires CAN**. WebBox is for monitoring and plant-level data, not charge limits.
 
 ## Sunny Island wiring (ComSync CAN — required for Ext-BMS)
 

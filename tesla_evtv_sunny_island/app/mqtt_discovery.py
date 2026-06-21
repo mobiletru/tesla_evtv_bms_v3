@@ -42,7 +42,6 @@ SUNNY_ISLAND_SENSORS: dict[str, dict[str, Any]] = {
     "output_voltage": {"name": "Output Voltage", "unit": "V", "device_class": "voltage", "can_id": 0x304, "field": "output_voltage_v"},
 }
 
-# Sunny Island via Modbus RS485 / TCP (SMA profile unit ID 3)
 MODBUS_SI_SENSORS: dict[str, dict[str, Any]] = {
     "dc_voltage": {"name": "DC Voltage (Modbus)", "unit": "V", "device_class": "voltage"},
     "dc_current": {"name": "DC Current (Modbus)", "unit": "A", "device_class": "current"},
@@ -52,6 +51,18 @@ MODBUS_SI_SENSORS: dict[str, dict[str, Any]] = {
     "si_battery_soc": {"name": "SI Battery SOC (Modbus)", "unit": "%", "device_class": "battery"},
     "si_battery_temp": {"name": "SI Battery Temp (Modbus)", "unit": "°C", "device_class": "temperature"},
     "system_state": {"name": "SI System State", "unit": None, "device_class": None},
+}
+
+WEBBOX_SENSORS: dict[str, dict[str, Any]] = {
+    "webbox_plant_power": {"name": "WebBox Plant Power", "unit": "W", "device_class": "power"},
+    "webbox_energy_today": {"name": "WebBox Energy Today", "unit": "kWh", "device_class": "energy"},
+    "webbox_energy_total": {"name": "WebBox Energy Total", "unit": "kWh", "device_class": "energy"},
+    "webbox_plant_status": {"name": "WebBox Plant Status", "unit": None, "device_class": None},
+    "inverter_power": {"name": "SI Power (WebBox)", "unit": "W", "device_class": "power"},
+    "dc_voltage": {"name": "SI DC Voltage (WebBox)", "unit": "V", "device_class": "voltage"},
+    "dc_current": {"name": "SI DC Current (WebBox)", "unit": "A", "device_class": "current"},
+    "si_battery_soc": {"name": "SI SOC (WebBox)", "unit": "%", "device_class": "battery"},
+    "grid_power": {"name": "SI Grid Power (WebBox)", "unit": "W", "device_class": "power"},
 }
 
 BMS_DEVICE = {
@@ -106,6 +117,14 @@ def load_publish_config() -> dict[str, Any]:
             [
                 "dc_voltage", "dc_current", "inverter_power", "grid_power",
                 "grid_feed_in_power", "si_battery_soc", "si_battery_temp", "system_state",
+            ],
+        ),
+        "webbox_enabled": os.environ.get("WEBBOX_ENABLED", "false").lower() == "true",
+        "webbox": _parse_list_env(
+            "PUBLISH_WEBBOX",
+            [
+                "webbox_plant_power", "webbox_energy_today", "webbox_plant_status",
+                "dc_voltage", "dc_current", "inverter_power", "si_battery_soc", "grid_power",
             ],
         ),
     }
@@ -213,6 +232,23 @@ def publish_all_discovery(client, cfg: dict[str, Any]) -> None:
                 name=meta["name"],
                 state_topic=f"tesla_evtv/{si_id}/{key}",
                 unique_id=f"{si_id}_modbus_{key}",
+                device=si_dev,
+                unit=meta["unit"],
+                device_class=meta["device_class"],
+            )
+            client.publish(topic, json.dumps(payload), retain=True)
+
+    if cfg.get("webbox_enabled"):
+        for key in cfg.get("webbox", set()):
+            if key not in WEBBOX_SENSORS:
+                continue
+            meta = WEBBOX_SENSORS[key]
+            topic = f"homeassistant/sensor/{si_id}/{key}/config"
+            payload = _discovery_payload(
+                object_id=key,
+                name=meta["name"],
+                state_topic=f"tesla_evtv/{si_id}/{key}",
+                unique_id=f"{si_id}_webbox_{key}",
                 device=si_dev,
                 unit=meta["unit"],
                 device_class=meta["device_class"],

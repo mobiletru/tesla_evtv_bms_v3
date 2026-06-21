@@ -8,6 +8,11 @@ export CAN_INTERFACE="$(bashio::config can_interface)"
 export CAN_BITRATE="$(bashio::config can_bitrate)"
 export SETUP_CAN="$(bashio::config setup_can)"
 export SMA_ENABLED="$(bashio::config sma_enabled)"
+export CAN_WATCH_ENABLED="$(bashio::config can_watch_enabled)"
+export CAN_WATCH_FILTER="$(bashio::config can_watch_filter)"
+export CAN_WATCH_MQTT="$(bashio::config can_watch_mqtt)"
+export CAN_WATCH_SUMMARY_INTERVAL="$(bashio::config can_watch_summary_interval)"
+export CAN_WATCH_DEVICE_NAME="$(bashio::config can_watch_device_name)"
 export DEVICE_NAME="$(bashio::config device_name)"
 export MODULE_COUNT="$(bashio::config module_count)"
 export MODULES_IN_SERIES="$(bashio::config modules_in_series)"
@@ -28,5 +33,5 @@ else
   export MQTT_PORT="1883"
 fi
 
-bashio::log.info "Starting Tesla EVTV BMS bridge on ${CAN_INTERFACE} (UDP ${UDP_PORT})"
+bashio::log.info "Starting Tesla EVTV BMS + Sunny Island on ${CAN_INTERFACE} (UDP ${UDP_PORT})"
 exec python3 -m app.main

@@ -1,7 +1,7 @@
 name: Tesla EVTV BMS + Sunny Island
-version: "1.0.0"
+version: "1.1.0"
 slug: tesla_evtv_sunny_island
-description: EVTV Tesla BMS UDP listener, MQTT sensors, and SMA Sunny Island 6048 CAN on can0
+description: EVTV Tesla BMS UDP, MQTT sensors, SMA closed-loop CAN, and CAN bus monitor
 url: https://github.com/mobiletru/tesla_evtv_bms_v3
 arch:
   - aarch64
@@ -21,6 +21,11 @@ options:
   can_bitrate: 500000
   setup_can: true
   sma_enabled: true
+  can_watch_enabled: true
+  can_watch_filter: sma
+  can_watch_mqtt: false
+  can_watch_summary_interval: 30
+  can_watch_device_name: sunny_island_can
   device_name: tesla_bms
   module_count: 36
   modules_in_series: 2
@@ -36,6 +41,11 @@ schema:
   can_bitrate: int
   setup_can: bool
   sma_enabled: bool
+  can_watch_enabled: bool
+  can_watch_filter: list(all|sma|bms)
+  can_watch_mqtt: bool
+  can_watch_summary_interval: int
+  can_watch_device_name: str
   device_name: str
   module_count: int
   modules_in_series: int

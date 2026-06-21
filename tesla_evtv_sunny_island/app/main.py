@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Home Assistant OS add-on: EVTV BMS UDP -> MQTT sensors + Sunny Island CAN on can0."""
+"""Home Assistant OS add-on: EVTV BMS, SMA Sunny Island CAN, and CAN bus monitor."""
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ import json
 import logging
 import os
 import socket
-import subprocess
 import sys
 import threading
 import time
@@ -15,6 +14,8 @@ import time
 import can
 import paho.mqtt.client as mqtt
 
+from app.can_monitor import CanWatchService
+from app.can_setup import setup_can_interface
 from app.pack_config import compute_pack_settings
 from app.parser import enrich_values, parse_udp_packet
 from app.sma_can import SMA_MESSAGE_INTERVAL, build_sma_messages
@@ -24,7 +25,6 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
 )
 log = logging.getLogger("tesla_evtv_haos")
-
 
 SENSOR_MAP = {
     "state_of_charge": ("%", "battery"),
@@ -49,6 +49,11 @@ class Bridge:
         self.sma_enabled = os.environ.get("SMA_ENABLED", "true").lower() == "true"
         self.invert_current = os.environ.get("INVERT_CURRENT", "false").lower() == "true"
         self.setup_can = os.environ.get("SETUP_CAN", "true").lower() == "true"
+        self.can_watch_enabled = os.environ.get("CAN_WATCH_ENABLED", "true").lower() == "true"
+        self.can_watch_filter = os.environ.get("CAN_WATCH_FILTER", "sma")
+        self.can_watch_mqtt = os.environ.get("CAN_WATCH_MQTT", "false").lower() == "true"
+        self.can_watch_summary = float(os.environ.get("CAN_WATCH_SUMMARY_INTERVAL", "30"))
+        self.can_watch_device = os.environ.get("CAN_WATCH_DEVICE_NAME", "sunny_island_can")
 
         pack = compute_pack_settings(
             int(os.environ.get("MODULE_COUNT", "36")),
@@ -78,21 +83,6 @@ class Bridge:
         self._mqtt.connect(host, port, 60)
         self._mqtt.loop_start()
         log.info("MQTT connected to %s:%s", host, port)
-
-    def setup_can_interface(self) -> None:
-        if not self.setup_can:
-            log.info("Skipping CAN setup (SETUP_CAN=false)")
-            return
-        cmds = [
-            ["ip", "link", "set", self.can_iface, "down"],
-            ["ip", "link", "set", self.can_iface, "type", "can", "bitrate", str(self.can_bitrate)],
-            ["ip", "link", "set", self.can_iface, "up"],
-        ]
-        for cmd in cmds:
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                log.warning("CAN setup command failed: %s -> %s", cmd, result.stderr.strip())
-        log.info("CAN interface %s configured at %s bps", self.can_iface, self.can_bitrate)
 
     def _ensure_bus(self) -> None:
         if self._bus is None:
@@ -168,6 +158,18 @@ class Bridge:
                     self._bus = None
                 time.sleep(2.0)
 
+    def can_watch_loop(self) -> None:
+        mqtt_client = self._mqtt if self.can_watch_mqtt else None
+        service = CanWatchService(
+            iface=self.can_iface,
+            filter_mode=self.can_watch_filter,
+            summary_interval=self.can_watch_summary,
+            mqtt_client=mqtt_client,
+            device_name=self.can_watch_device,
+            bus=self._bus,
+        )
+        service.run()
+
     def run(self) -> None:
         parallel = self.config["module_count"] // self.config["modules_in_series"]
         log.info(
@@ -178,9 +180,19 @@ class Bridge:
             self.config["nominal_voltage"],
             self.config["cells_in_series"],
         )
-        self.setup_can_interface()
+        if self.setup_can:
+            setup_can_interface(self.can_iface, self.can_bitrate)
+        elif not self.setup_can:
+            log.info("Skipping CAN setup (SETUP_CAN=false)")
+
+        self._ensure_bus()
         self.publish_discovery()
-        threading.Thread(target=self.sma_loop, daemon=True).start()
+
+        if self.sma_enabled:
+            threading.Thread(target=self.sma_loop, daemon=True).start()
+        if self.can_watch_enabled:
+            threading.Thread(target=self.can_watch_loop, daemon=True).start()
+
         self.udp_loop()
 
 

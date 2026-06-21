@@ -202,7 +202,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if path == "/api/status":
             bridge = self.bridge
             with bridge._lock:
-                live = dict(enrich_snapshot(bridge.values, bridge.config))
+                live = dict(enrich_snapshot(bridge.values, bridge.settings.get_config()))
             snap = bridge.settings.snapshot_for_api(live)
             snap["sma_output"] = bridge.last_sma_limits
             self._json_response(200, snap)

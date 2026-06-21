@@ -33,6 +33,7 @@ class CanWatchService:
         si_device: str = "sunny_island",
         enabled_si_metrics: set[str] | None = None,
         bus: can.Bus | None = None,
+        enabled_fn=None,
     ) -> None:
         self.iface = iface
         self.filter_mode = filter_mode
@@ -42,6 +43,7 @@ class CanWatchService:
         self.enabled_si_metrics = enabled_si_metrics or set(SUNNY_ISLAND_SENSORS)
         self.bus = bus
         self._owns_bus = bus is None
+        self._enabled_fn = enabled_fn or (lambda: True)
         self.counts: Counter[int] = Counter()
         self.last_seen: dict[int, float] = {}
         self.last_decoded: dict[int, dict] = {}
@@ -110,6 +112,9 @@ class CanWatchService:
 
         last_summary = time.monotonic()
         while True:
+            if not self._enabled_fn():
+                time.sleep(0.5)
+                continue
             msg = self.bus.recv(timeout=1.0)
             now = time.monotonic()
             if msg is None:

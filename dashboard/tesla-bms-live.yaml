@@ -1,0 +1,107 @@
+# Tesla BMS + Sunny Island — Live dashboard
+# Import: Settings → Dashboards → Add dashboard → Import → paste this file
+# Or copy views into an existing dashboard.
+#
+# Requires add-on v1.3+ with publish_mqtt: true
+# Entity IDs assume device_name: tesla_bms, sunny_island_device_name: sunny_island
+
+title: Tesla BMS
+views:
+  - title: Live
+    path: live
+    icon: mdi:battery-high
+    cards:
+      - type: markdown
+        content: |
+          **Live web dashboard** (sliders apply instantly): open the add-on **Open web UI** button or `http://<ha-ip>:8099/`
+
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.tesla_bms_state_of_charge
+            name: SOC
+            min: 0
+            max: 100
+            severity:
+              green: 60
+              yellow: 20
+              red: 0
+          - type: entities
+            entities:
+              - entity: sensor.tesla_bms_volts
+              - entity: sensor.tesla_bms_current
+              - entity: sensor.tesla_bms_power
+              - entity: sensor.tesla_bms_battery_status
+
+      - type: glance
+        title: Cells
+        entities:
+          - entity: sensor.tesla_bms_lowest_cell
+          - entity: sensor.tesla_bms_highest_cell
+          - entity: sensor.tesla_bms_average_cell
+
+      - type: history-graph
+        title: Pack (24h)
+        hours_to_show: 24
+        entities:
+          - entity: sensor.tesla_bms_state_of_charge
+          - entity: sensor.tesla_bms_volts
+
+  - title: Settings
+    path: settings
+    icon: mdi:tune
+    cards:
+      - type: markdown
+        content: |
+          Changes apply **live** — no add-on restart. Sunny Island CAN limits update on the next transmit cycle (~250 ms).
+
+      - type: entities
+        title: Charge / discharge limits
+        entities:
+          - entity: number.tesla_bms_setting_charge_current_limit
+          - entity: number.tesla_bms_setting_discharge_current_limit
+          - entity: number.tesla_bms_setting_min_cell_volts
+          - entity: number.tesla_bms_setting_max_cell_volts
+
+      - type: entities
+        title: Toggles
+        entities:
+          - entity: switch.tesla_bms_setting_sma_enabled
+          - entity: switch.tesla_bms_setting_can_watch_enabled
+          - entity: switch.tesla_bms_setting_invert_current
+
+      - type: entities
+        title: SMA CAN output (read-only)
+        entities:
+          - entity: sensor.tesla_bms_sma_charge_voltage
+          - entity: sensor.tesla_bms_sma_charge_current
+          - entity: sensor.tesla_bms_sma_discharge_current
+
+  - title: Sunny Island
+    path: sunny-island
+    icon: mdi:solar-power
+    cards:
+      - type: glance
+        title: DC bus
+        entities:
+          - entity: sensor.sunny_island_dc_voltage
+          - entity: sensor.sunny_island_dc_current
+
+      - type: glance
+        title: Power
+        entities:
+          - entity: sensor.sunny_island_grid_power
+          - entity: sensor.sunny_island_inverter_power
+          - entity: sensor.sunny_island_load_power
+
+      - type: entities
+        entities:
+          - entity: sensor.sunny_island_input_voltage
+          - entity: sensor.sunny_island_grid_frequency
+
+      - type: history-graph
+        title: DC bus (24h)
+        hours_to_show: 24
+        entities:
+          - entity: sensor.sunny_island_dc_voltage
+          - entity: sensor.sunny_island_dc_current

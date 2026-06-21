@@ -18,6 +18,7 @@ from app.can_monitor import CanWatchService
 from app.can_setup import setup_can_interface
 from app.charge_control import compute_closed_loop_limits
 from app.live_settings import LiveSettings
+from app.mqtt_discovery import load_publish_config, publish_all_discovery, sma_limits_to_mqtt
 from app.pack_config import compute_pack_settings
 from app.parser import enrich_values, parse_udp_packet
 from app.settings_mqtt import SettingsMqtt
@@ -30,32 +31,19 @@ logging.basicConfig(
 )
 log = logging.getLogger("tesla_evtv_haos")
 
-SENSOR_MAP = {
-    "state_of_charge": ("%", "battery"),
-    "volts": ("V", "voltage"),
-    "current": ("A", "current"),
-    "power": ("W", "power"),
-    "lowest_cell": ("V", "voltage"),
-    "highest_cell": ("V", "voltage"),
-    "average_cell": ("V", "voltage"),
-    "max_temp": ("°F", "temperature"),
-    "min_temp": ("°F", "temperature"),
-    "battery_status": (None, None),
-}
-
 
 class Bridge:
     def __init__(self) -> None:
-        self.device = os.environ.get("DEVICE_NAME", "tesla_bms")
+        self.publish_cfg = load_publish_config()
+        self.device = self.publish_cfg["bms_device"]
+        self.si_device = self.publish_cfg["si_device"]
         self.udp_port = int(os.environ.get("UDP_PORT", "6850"))
         self.can_iface = os.environ.get("CAN_INTERFACE", "can0")
         self.can_bitrate = int(os.environ.get("CAN_BITRATE", "500000"))
         self.invert_current = os.environ.get("INVERT_CURRENT", "false").lower() == "true"
         self.setup_can = os.environ.get("SETUP_CAN", "true").lower() == "true"
         self.can_watch_filter = os.environ.get("CAN_WATCH_FILTER", "sma")
-        self.can_watch_mqtt = os.environ.get("CAN_WATCH_MQTT", "false").lower() == "true"
         self.can_watch_summary = float(os.environ.get("CAN_WATCH_SUMMARY_INTERVAL", "30"))
-        self.can_watch_device = os.environ.get("CAN_WATCH_DEVICE_NAME", "sunny_island_can")
         self.web_enabled = os.environ.get("WEB_ENABLED", "true").lower() == "true"
         self.web_port = int(os.environ.get("WEB_PORT", "8099"))
 
@@ -79,7 +67,6 @@ class Bridge:
         self.last_sma_limits: dict = {}
         self._lock = threading.Lock()
         self._bus: can.Bus | None = None
-        self._can_watch_thread: threading.Thread | None = None
         self._mqtt = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
         self._settings_mqtt: SettingsMqtt | None = None
         self._setup_mqtt()
@@ -121,7 +108,7 @@ class Bridge:
         if self._settings_mqtt:
             self._settings_mqtt._publish_setting_state(key, value)
         if key == "can_watch_enabled":
-            self._restart_can_watch()
+            log.info("CAN watch %s", "enabled" if value else "disabled")
 
     def apply_settings(self, updates: dict) -> dict:
         errors = self.settings.apply(updates)
@@ -130,7 +117,7 @@ class Bridge:
                 self.config = self.settings.get_config()
             if self._settings_mqtt:
                 for key in updates:
-                    if key in updates and key not in errors:
+                    if key not in errors:
                         self._settings_mqtt._publish_setting_state(key, self.settings.get(key))
         return errors
 
@@ -139,32 +126,27 @@ class Bridge:
             self._bus = can.interface.Bus(interface="socketcan", channel=self.can_iface)
 
     def publish_discovery(self) -> None:
-        for key, (unit, device_class) in SENSOR_MAP.items():
-            topic = f"homeassistant/sensor/{self.device}/{key}/config"
-            payload = {
-                "name": f"{self.device} {key.replace('_', ' ').title()}",
-                "state_topic": f"tesla_evtv/{self.device}/{key}",
-                "unique_id": f"{self.device}_{key}",
-                "device": {
-                    "identifiers": [self.device],
-                    "name": self.device,
-                    "manufacturer": "EVTV",
-                    "model": "Tesla BMS V3 + Sunny Island",
-                },
-            }
-            if unit:
-                payload["unit_of_measurement"] = unit
-            if device_class:
-                payload["device_class"] = device_class
-            self._mqtt.publish(topic, json.dumps(payload), retain=True)
+        publish_all_discovery(self._mqtt, self.publish_cfg)
         if self._settings_mqtt:
             self._settings_mqtt.publish_discovery()
             self._settings_mqtt.publish_all_states()
 
     def publish_state(self, values: dict) -> None:
-        for key in SENSOR_MAP:
+        if not self.publish_cfg["publish_mqtt"]:
+            return
+        for key in self.publish_cfg["bms"]:
             if key in values and values[key] is not None:
                 self._mqtt.publish(f"tesla_evtv/{self.device}/{key}", str(values[key]), retain=True)
+
+    def _publish_sma_limits(self, limits: dict[str, float]) -> None:
+        if not self.publish_cfg["publish_mqtt"]:
+            return
+        mapped = sma_limits_to_mqtt(limits)
+        for key in self.publish_cfg["sma_limits"]:
+            if key in mapped:
+                self._mqtt.publish(f"tesla_evtv/{self.device}/sma/{key}", str(mapped[key]), retain=True)
+        if self._settings_mqtt:
+            self._settings_mqtt.publish_sma_output(limits)
 
     def send_sma(self) -> None:
         if not self.sma_enabled:
@@ -176,8 +158,7 @@ class Bridge:
             values = enrich_values(self.values, self.config)
             messages = build_sma_messages(values, self.config)
             self.last_sma_limits = compute_closed_loop_limits(values, self.config)
-        if self._settings_mqtt and self.last_sma_limits:
-            self._settings_mqtt.publish_sma_output(self.last_sma_limits)
+        self._publish_sma_limits(self.last_sma_limits)
         self._ensure_bus()
         for can_id, payload in messages:
             msg = can.Message(
@@ -215,29 +196,19 @@ class Bridge:
                     self._bus = None
                 time.sleep(2.0)
 
-    def _restart_can_watch(self) -> None:
-        # CAN watch thread runs until process exit; toggling off stops processing via flag
-        pass
-
     def can_watch_loop(self) -> None:
-        mqtt_client = self._mqtt if self.can_watch_mqtt else None
+        mqtt_client = self._mqtt if self.publish_cfg["publish_mqtt"] else None
         service = CanWatchService(
             iface=self.can_iface,
             filter_mode=self.can_watch_filter,
             summary_interval=self.can_watch_summary,
             mqtt_client=mqtt_client,
-            device_name=self.can_watch_device,
+            si_device=self.si_device,
+            enabled_si_metrics=self.publish_cfg["sunny_island"],
             bus=self._bus,
+            enabled_fn=lambda: self.can_watch_enabled,
         )
-        while True:
-            if not self.can_watch_enabled:
-                time.sleep(1.0)
-                continue
-            try:
-                service.run()
-            except Exception:
-                log.exception("CAN watch error")
-                time.sleep(2.0)
+        service.run()
 
     def run(self) -> None:
         cfg = self.config
@@ -260,6 +231,7 @@ class Bridge:
 
         if self.web_enabled:
             start_web_dashboard(self, "0.0.0.0", self.web_port)
+            log.info("Live settings dashboard: http://<ha-host>:{}/", self.web_port)
 
         threading.Thread(target=self.sma_loop, daemon=True).start()
         threading.Thread(target=self.can_watch_loop, daemon=True).start()

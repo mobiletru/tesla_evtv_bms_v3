@@ -1,7 +1,7 @@
 name: Tesla EVTV BMS + Sunny Island
-version: "1.2.0"
+version: "1.3.0"
 slug: tesla_evtv_sunny_island
-description: EVTV BMS, configurable MQTT dashboard, SMA closed-loop CAN, CAN monitor
+description: EVTV BMS, live web dashboard, configurable MQTT, SMA closed-loop CAN
 url: https://github.com/mobiletru/tesla_evtv_bms_v3
 arch:
   - aarch64
@@ -10,6 +10,9 @@ arch:
 startup: application
 init: false
 host_network: true
+webui: "http://[HOST]:[PORT:8099]/"
+ports:
+  8099/tcp: 8099
 privileged:
   - NET_ADMIN
 services:
@@ -24,8 +27,9 @@ options:
   can_watch_enabled: true
   can_watch_filter: sma
   can_watch_summary_interval: 30
-  publish_mqtt: true
-  device_name: tesla_bms
+  web_enabled: true
+  web_port: 8099
+  publish_mqtt: true  device_name: tesla_bms
   sunny_island_device_name: sunny_island
   publish_bms:
     - state_of_charge
@@ -67,6 +71,8 @@ schema:
   can_watch_enabled: bool
   can_watch_filter: list(all|sma|bms)
   can_watch_summary_interval: int
+  web_enabled: bool
+  web_port: port
   publish_mqtt: bool
   device_name: str
   sunny_island_device_name: str

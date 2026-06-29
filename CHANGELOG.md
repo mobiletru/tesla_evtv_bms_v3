@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+- Add native **macOS SwiftUI monitor** (`macos/TeslaEVTVBMS`) for EVTV BMS UDP/CAN decode.
+- Ignore Cursor `agent-tools/` and `terminals/` artifacts in `.gitignore`.
+
 ## 3.3.5
 - **Removed PCAN / Sunny Island CAN transmit** from the integration (`pcan_transmitter`, `sma_transmitter`, `sma_can`, `charge_control`). UDP listen-only again — fixes errno 105 TX queue errors when HA Core and add-on both touched `can0`.
 - Removed SMA metrics sensors (`freq_shift_volts`, `tcch_amps`) and Sunny Island dashboard tab.

@@ -154,4 +154,13 @@ Battery type: **LiIon Ext-BMS**, preservation SOC: **0%**.
 ```
 tesla_evtv_sunny_island/   ← HA OS add-on
 dashboard/                 ← Lovelace import YAML
+macos/                     ← Native macOS monitor (SwiftUI)
 ```
+
+## macOS monitor app
+
+The **`macos/TeslaEVTVBMS`** app is a native SwiftUI dashboard for the EVTV LiteCAN UDP stream (default port **6850**). It shows pack SOC, voltage/current/power, cell spread, energy counters, and SMA freq-shift / TCCH metrics when present.
+
+1. Open `macos/TeslaEVTVBMS.xcodeproj` in Xcode 15+ (macOS 14+).
+2. Build and run. The app listens on UDP and starts on launch.
+3. Adjust pack name, size, and UDP port under **Settings**.

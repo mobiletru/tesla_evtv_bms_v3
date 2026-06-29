@@ -37,3 +37,7 @@ Thumbs.db
 .env.*
 *.pem
 secrets.yaml
+
+# Cursor / agent artifacts
+**/agent-tools/
+**/terminals/

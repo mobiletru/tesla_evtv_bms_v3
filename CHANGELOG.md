@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Add **Tesla EVTV BMS Monitor** HA OS add-on (`tesla_evtv_bms_monitor`) — UDP-only live web dashboard on port 8100.
 - Add native **macOS SwiftUI monitor** (`macos/TeslaEVTVBMS`) for EVTV BMS UDP/CAN decode.
 - Ignore Cursor `agent-tools/` and `terminals/` artifacts in `.gitignore`.
 

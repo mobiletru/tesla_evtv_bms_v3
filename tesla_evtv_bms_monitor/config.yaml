@@ -1,0 +1,29 @@
+name: Tesla EVTV BMS Monitor
+version: "1.0.0"
+slug: tesla_evtv_bms_monitor
+description: >-
+  Lightweight UDP listener and live web dashboard for EVTV BMS pack data
+  (SOC, cells, power). No MQTT or CAN transmit required.
+url: https://github.com/mobiletru/tesla_evtv_bms_v3
+arch:
+  - aarch64
+  - amd64
+  - armv7
+startup: application
+init: false
+host_network: true
+webui: "http://[HOST]:[PORT:8100]/"
+ports:
+  8100/tcp: 8100
+options:
+  log_level: info
+  udp_port: 6850
+  web_port: 8100
+  pack_name: Tesla Pack
+  pack_size_kwh: 75
+schema:
+  log_level: list(trace|debug|info|notice|warning|error|fatal)?
+  udp_port: port
+  web_port: port
+  pack_name: str
+  pack_size_kwh: float

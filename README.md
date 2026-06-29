@@ -8,8 +8,21 @@ Home Assistant integration: **UDP-only** EVTV BMS monitoring (SOC, pack V/I, cel
 
 1. **Settings → Add-ons → Add-on Store → ⋮ → Repositories**
 2. Add: `https://github.com/mobiletru/tesla_evtv_bms_v3`
-3. Install **Tesla EVTV BMS** add-on, start it, restart Home Assistant
-4. **Settings → Devices & Services → Add Integration** → `Tesla EVTV BMS V3`
+3. Choose an add-on:
+   - **Tesla EVTV BMS Monitor** — UDP listener + live web dashboard (port 8100), no MQTT/CAN required
+   - **Tesla EVTV BMS** — installs the HA integration into `/config`
+4. Start the add-on, restart Home Assistant (for integration add-on)
+5. **Settings → Devices & Services → Add Integration** → `Tesla EVTV BMS V3`
+
+### Tesla EVTV BMS Monitor (web dashboard)
+
+Lightweight add-on that mirrors the macOS monitor: listens on UDP **6850** (default) and serves a tabbed web UI on **8100**.
+
+1. Install **Tesla EVTV BMS Monitor** from this repository
+2. Point LiteCAN UDP at your Home Assistant IP on the configured UDP port
+3. Open **Open web UI** on the add-on page
+
+Tabs: Dashboard (SOC, power, energy), Cells, Sunny Island setup guide, Settings (pack name/size).
 
 ## Install (HACS)
 
@@ -152,7 +165,9 @@ Battery type: **LiIon Ext-BMS**, preservation SOC: **0%**.
 ## Repository layout
 
 ```
-tesla_evtv_sunny_island/   ← HA OS add-on
+tesla_evtv_sunny_island/   ← HA OS add-on (MQTT/CAN bridge + settings UI on 8099)
+tesla_evtv_bms_monitor/    ← HA OS add-on (UDP-only web monitor on 8100)
+tesla_evtv_bms/            ← HA OS add-on (integration installer)
 dashboard/                 ← Lovelace import YAML
 macos/                     ← Native macOS monitor (SwiftUI)
 ```

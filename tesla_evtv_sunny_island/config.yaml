@@ -1,5 +1,5 @@
 name: Tesla EVTV BMS + Sunny Island
-version: "1.5.0"
+version: "1.5.1"
 slug: tesla_evtv_sunny_island
 description: EVTV BMS, SMA CAN, Modbus, WebBox RPC, live dashboard
 url: https://github.com/mobiletru/tesla_evtv_bms_v3
@@ -121,61 +121,15 @@ schema:
   device_name: str
   sunny_island_device_name: str
   publish_bms:
-    multiple: true
-    optional: true
-    options:
-      - state_of_charge
-      - volts
-      - current
-      - power
-      - lowest_cell
-      - highest_cell
-      - average_cell
-      - max_temp
-      - min_temp
-      - battery_status
+    - list(state_of_charge|volts|current|power|lowest_cell|highest_cell|average_cell|max_temp|min_temp|battery_status)
   publish_sma_limits:
-    multiple: true
-    optional: true
-    options:
-      - charge_voltage
-      - charge_current
-      - discharge_current
-      - discharge_voltage
+    - list(charge_voltage|charge_current|discharge_current|discharge_voltage)
   publish_sunny_island:
-    multiple: true
-    optional: true
-    options:
-      - dc_voltage
-      - dc_current
-      - grid_power
-      - inverter_power
-      - load_power
-      - input_voltage
+    - list(dc_voltage|dc_current|grid_power|inverter_power|load_power|input_voltage)
   publish_modbus:
-    multiple: true
-    optional: true
-    options:
-      - dc_voltage
-      - dc_current
-      - inverter_power
-      - grid_power
-      - si_battery_soc
-      - si_battery_temp
-      - system_state
+    - list(dc_voltage|dc_current|inverter_power|grid_power|si_battery_soc|si_battery_temp|system_state)
   publish_webbox:
-    multiple: true
-    optional: true
-    options:
-      - webbox_plant_power
-      - webbox_energy_today
-      - webbox_energy_total
-      - webbox_plant_status
-      - dc_voltage
-      - dc_current
-      - inverter_power
-      - si_battery_soc
-      - grid_power
+    - list(webbox_plant_power|webbox_energy_today|webbox_energy_total|webbox_plant_status|dc_voltage|dc_current|inverter_power|si_battery_soc|grid_power)
   module_count: int
   modules_in_series: int
   min_cell_volts: float
